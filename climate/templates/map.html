@@ -1,0 +1,440 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ menu_translations.map }} - {{ menu_translations.app_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    #climateMap {
+        height: 600px;
+        width: 100%;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .map-controls {
+        position: absolute;
+        top: 80px;
+        right: 20px;
+        z-index: 1000;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        width: 300px;
+    }
+    
+    .map-legend {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        margin-right: 10px;
+        border-radius: 3px;
+    }
+    
+    .temperature-hot { color: #F44336; }
+    .temperature-warm { color: #FF9800; }
+    .temperature-mild { color: #4CAF50; }
+    .temperature-cold { color: #2196F3; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1><i class="fas fa-map me-2"></i>{{ menu_translations.map }}</h1>
+        <p class="text-muted">Interactive climate map with real-time data and environmental reports</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary" onclick="refreshMapData()">
+                <i class="fas fa-sync-alt me-1"></i> Refresh
+            </button>
+            <a href="{% url 'create_report' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Submit Report
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Map Container -->
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-globe-africa me-2"></i>East Africa Climate Map
+    </div>
+    <div class="card-body p-0">
+        <div id="climateMap"></div>
+    </div>
+</div>
+
+<!-- Map Controls (Positioned over map via CSS) -->
+<div class="map-controls">
+    <h6><i class="fas fa-sliders-h me-2"></i>Map Controls</h6>
+    
+    <div class="mb-3">
+        <label class="form-label">Data Type</label>
+        <select class="form-select" id="dataTypeSelect" onchange="updateMapData()">
+            <option value="temperature">Temperature</option>
+            <option value="rainfall">Rainfall</option>
+            <option value="humidity">Humidity</option>
+            <option value="air_quality">Air Quality</option>
+        </select>
+    </div>
+    
+    <div class="mb-3">
+        <label class="form-label">Time Range</label>
+        <select class="form-select" id="timeRangeSelect" onchange="updateMapData()">
+            <option value="1">Last 24 hours</option>
+            <option value="7" selected>Last 7 days</option>
+            <option value="30">Last 30 days</option>
+        </select>
+    </div>
+    
+    <div class="mb-3">
+        <label class="form-label">Map Style</label>
+        <select class="form-select" id="mapStyleSelect" onchange="changeMapStyle()">
+            <option value="openstreetmap">Street Map</option>
+            <option value="topographical">Topographical</option>
+            <option value="satellite">Satellite</option>
+        </select>
+    </div>
+    
+    <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" id="heatmapToggle" checked onchange="toggleHeatmap()">
+        <label class="form-check-label" for="heatmapToggle">Show Heatmap</label>
+    </div>
+    
+    <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" id="predictionsToggle" onchange="togglePredictions()">
+        <label class="form-check-label" for="predictionsToggle">Show Predictions</label>
+    </div>
+    
+    <button class="btn btn-sm btn-outline-primary w-100" onclick="locateUser()">
+        <i class="fas fa-location-arrow me-1"></i> Locate Me
+    </button>
+</div>
+
+<!-- Map Legend -->
+<div class="map-legend">
+    <h6><i class="fas fa-key me-2"></i>Legend</h6>
+    
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #F44336;"></div>
+        <span>Hot (>30°C)</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FF9800;"></div>
+        <span>Warm (25-30°C)</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #4CAF50;"></div>
+        <span>Mild (15-25°C)</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #2196F3;"></div>
+        <span>Cold (<15°C)</span>
+    </div>
+    <hr>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #2e7d32; border-radius: 50%;"></div>
+        <span>Region Center</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background: linear-gradient(to right, blue, lime, yellow, red);"></div>
+        <span>Heatmap Intensity</span>
+    </div>
+</div>
+
+<!-- Statistics Panel -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value" id="mapRegionsCount">--</div>
+            <div class="stat-label">Regions Mapped</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value" id="mapDataPoints">--</div>
+            <div class="stat-label">Data Points</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value" id="mapAvgTemp">--</div>
+            <div class="stat-label">Avg Temperature</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value" id="mapReports">--</div>
+            <div class="stat-label">Environmental Reports</div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Reports Table -->
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="fas fa-flag me-2"></i>Recent Environmental Reports in View
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="reportsTable">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Title</th>
+                        <th>Region</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Reports will be loaded by JavaScript -->
+                    <tr id="loadingRow">
+                        <td colspan="6" class="text-center">
+                            <div class="loading-spinner mx-auto"></div>
+                            <p class="mt-2">Loading reports...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Global map variable
+    let climateMap;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize the map
+        climateMap = new ClimateMap('climateMap');
+        
+        // Load map statistics
+        loadMapStatistics();
+        loadRecentReports();
+    });
+    
+    function refreshMapData() {
+        if (climateMap) {
+            climateMap.loadClimateData();
+            loadMapStatistics();
+            loadRecentReports();
+            
+            // Show loading state
+            showNotification('Refreshing map data...', 'info');
+        }
+    }
+    
+    function updateMapData() {
+        const dataType = document.getElementById('dataTypeSelect').value;
+        const timeRange = document.getElementById('timeRangeSelect').value;
+        
+        // In a real implementation, this would filter the data
+        showNotification(`Showing ${dataType} data for last ${timeRange} days`, 'info');
+    }
+    
+    function changeMapStyle() {
+        const style = document.getElementById('mapStyleSelect').value;
+        // Map style change would be handled by the ClimateMap class
+        showNotification(`Switched to ${style} view`, 'info');
+    }
+    
+    function toggleHeatmap() {
+        const showHeatmap = document.getElementById('heatmapToggle').checked;
+        if (climateMap) {
+            if (showHeatmap) {
+                climateMap.map.addLayer(climateMap.layerGroups.heatmap);
+            } else {
+                climateMap.map.removeLayer(climateMap.layerGroups.heatmap);
+            }
+        }
+    }
+    
+    function togglePredictions() {
+        const showPredictions = document.getElementById('predictionsToggle').checked;
+        if (climateMap) {
+            if (showPredictions) {
+                climateMap.map.addLayer(climateMap.layerGroups.predictions);
+            } else {
+                climateMap.map.removeLayer(climateMap.layerGroups.predictions);
+            }
+        }
+    }
+    
+    function locateUser() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const latlng = [position.coords.latitude, position.coords.longitude];
+                    climateMap.map.setView(latlng, 12);
+                    
+                    // Add a marker at user's location
+                    L.marker(latlng, {
+                        icon: L.divIcon({
+                            html: '<div style="background-color: #1976d2; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+                            className: 'user-location-marker',
+                            iconSize: [30, 30]
+                        })
+                    }).addTo(climateMap.map)
+                    .bindPopup('Your Location')
+                    .openPopup();
+                },
+                function(error) {
+                    showNotification('Unable to get your location: ' + error.message, 'error');
+                }
+            );
+        } else {
+            showNotification('Geolocation is not supported by your browser', 'error');
+        }
+    }
+    
+    async function loadMapStatistics() {
+        try {
+            const response = await fetch('/api/statistics/');
+            const data = await response.json();
+            
+            // Update statistics
+            document.getElementById('mapRegionsCount').textContent = data.basic_statistics?.regions || '--';
+            document.getElementById('mapDataPoints').textContent = data.basic_statistics?.total_readings || '--';
+            document.getElementById('mapAvgTemp').textContent = 
+                data.basic_statistics?.avg_temperature ? 
+                data.basic_statistics.avg_temperature.toFixed(1) + '°C' : '--';
+            
+            // Get reports count
+            const reportsResponse = await fetch('/api/reports/?limit=1');
+            const reportsData = await reportsResponse.json();
+            document.getElementById('mapReports').textContent = reportsData.count || '--';
+            
+        } catch (error) {
+            console.error('Error loading statistics:', error);
+        }
+    }
+    
+    async function loadRecentReports() {
+        try {
+            const response = await fetch('/api/reports/?limit=5');
+            const data = await response.json();
+            
+            const tableBody = document.querySelector('#reportsTable tbody');
+            const loadingRow = document.getElementById('loadingRow');
+            
+            if (loadingRow) {
+                loadingRow.remove();
+            }
+            
+            if (data.results && data.results.length > 0) {
+                tableBody.innerHTML = data.results.map(report => `
+                    <tr>
+                        <td>
+                            <span class="badge ${getReportBadgeClass(report.report_type)}">
+                                ${report.report_type}
+                            </span>
+                        </td>
+                        <td>${report.title}</td>
+                        <td>${report.region_name}</td>
+                        <td>${new Date(report.created_at).toLocaleDateString()}</td>
+                        <td>
+                            <span class="badge ${getStatusBadgeClass(report.status)}">
+                                ${report.status}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="/reports/${report.id}/" class="btn btn-sm btn-outline-primary">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
+                            <p>No reports found in this view</p>
+                        </td>
+                    </tr>
+                `;
+            }
+            
+        } catch (error) {
+            console.error('Error loading reports:', error);
+            document.querySelector('#reportsTable tbody').innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Failed to load reports
+                    </td>
+                </tr>
+            `;
+        }
+    }
+    
+    function getReportBadgeClass(reportType) {
+        switch(reportType) {
+            case 'flood': return 'bg-primary';
+            case 'drought': return 'bg-warning';
+            case 'pollution': return 'bg-danger';
+            case 'haze': return 'bg-secondary';
+            default: return 'bg-info';
+        }
+    }
+    
+    function getStatusBadgeClass(status) {
+        switch(status) {
+            case 'reported': return 'bg-secondary';
+            case 'verified': return 'bg-info';
+            case 'in_progress': return 'bg-warning';
+            case 'resolved': return 'bg-success';
+            default: return 'bg-light text-dark';
+        }
+    }
+    
+    function showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 300px;
+        `;
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 3000);
+    }
+</script>
+{% endblock %}

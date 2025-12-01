@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ menu_translations.carbon }} - {{ menu_translations.app_name }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1><i class="fas fa-calculator me-2"></i>{{ menu_translations.carbon }}</h1>
+        <p class="text-muted">Calculate your carbon footprint and get personalized reduction suggestions</p>
+    </div>
+    <div class="col-md-4">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Live Estimate:</strong>
+            <span id="liveEstimate" class="badge bg-secondary ms-2">-- kg CO₂e/year</span>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Calculator Form -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-edit me-2"></i>Carbon Footprint Calculator
+            </div>
+            <div class="card-body">
+                <form method="post" id="carbonCalculatorForm">
+                    {% csrf_token %}
+                    
+                    <div class="accordion" id="calculatorAccordion">
+                        <!-- Transportation Section -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#transportationSection">
+                                    <i class="fas fa-car me-2"></i> Transportation
+                                </button>
+                            </h2>
+                            <div id="transportationSection" class="accordion-collapse collapse show" data-bs-parent="#calculatorAccordion">
+                                <div class="accordion-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="id_car_type" class="form-label">Vehicle Type</label>
+                                            {{ form.car_type }}
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="id_car_km" class="form-label">Weekly Distance (km)</label>
+                                            {{ form.car_km }}
+                                            <div class="form-text">Average weekly driving distance</div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="id_public_transport_km" class="form-label">Public Transport (km/week)</label>
+                                            {{ form.public_transport_km }}
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="id_flights_hours" class="form-label">Flight Hours (per year)</label>
+                                            {{ form.flights_hours }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Household Section -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#householdSection">
+                                    <i class="fas fa-home me-2"></i> Household
+                                </button>
+                            </h2>
+                            <div id="householdSection" class="accordion-collapse collapse" data-bs-parent="#calculatorAccordion">
+                                <div class="accordion-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="id_household_size" class="form-label">Household Size</label>
+                                            {{ form.household_size }}
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="id_electricity_kwh" class="form-label">Monthly Electricity (kWh)</label>
+                                            {{ form.electricity_kwh }}
+                                            <div class="form-text">Check your electricity bill</div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="id_renewable_energy" class="form-label">Renewable Energy Usage</label>
+                                            {{ form.renewable_energy }}
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="id_waste_kg" class="form-label">Weekly Waste (kg)</label>
+                                            {{ form.waste_kg }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Lifestyle Section -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#lifestyleSection">
+                                    <i class="fas fa-utensils me-2"></i> Lifestyle
+                                </button>
+                            </h2>
+                            <div id="lifestyleSection" class="accordion-collapse collapse" data-bs-parent="#calculatorAccordion">
+                                <div class="accordion-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="id_diet_type" class="form-label">Diet Type</label>
+                                            {{ form.diet_type }}
+                                            <div class="form-text">Primary diet type</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="text-muted small">
+                                                <strong>Diet Impact:</strong><br>
+                                                Vegetarian: ~1000 kg CO₂e/year<br>
+                                                Meat 1-2 times/week: ~1500 kg CO₂e/year<br>
+                                                Meat 3-5 times/week: ~2000 kg CO₂e/year<br>
+                                                Meat daily: ~3000 kg CO₂e/year
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-calculator me-2"></i> Calculate My Footprint
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary ms-2" onclick="resetForm()">
+                            <i class="fas fa-redo me-2"></i> Reset Form
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Previous Calculations -->
+        {% if previous_calculations %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-history me-2"></i>Previous Calculations
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Total CO₂e</th>
+                                <th>Emission Level</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for calc in previous_calculations %}
+                            <tr>
+                                <td>{{ calc.calculation_date|date:"M d, Y" }}</td>
+                                <td>
+                                    <strong>{{ calc.total_co2e|floatformat:0 }} kg</strong>
+                                </td>
+                                <td>
+                                    <span class="badge {% if calc.get_emission_level == 'Low' %}bg-success{% elif calc.get_emission_level == 'Moderate' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ calc.get_emission_level }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="viewDetails({{ calc.id }})">
+                                        View Details
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Results & Information -->
+    <div class="col-md-4">
+        <!-- Results Container -->
+        <div id="carbonResult" style="display: none;">
+            <!-- Results will be displayed here by JavaScript -->
+        </div>
+        
+        <!-- Chart -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-chart-pie me-2"></i>Emission Breakdown
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="carbonChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Information Card -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-lightbulb me-2"></i>Quick Tips to Reduce Emissions
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item">
+                        <i class="fas fa-bus text-primary me-2"></i>
+                        <strong>Use Public Transport:</strong> Saves up to 1.5 tons of CO₂/year
+                    </div>
+                    <div class="list-group-item">
+                        <i class="fas fa-solar-panel text-warning me-2"></i>
+                        <strong>Switch to Solar:</strong> Reduce electricity emissions by 70%
+                    </div>
+                    <div class="list-group-item">
+                        <i class="fas fa-seedling text-success me-2"></i>
+                        <strong>Plant Trees:</strong> Each tree absorbs 21 kg CO₂/year
+                    </div>
+                    <div class="list-group-item">
+                        <i class="fas fa-recycle text-info me-2"></i>
+                        <strong>Reduce, Reuse, Recycle:</strong> Cut waste emissions by 50%
+                    </div>
+                    <div class="list-group-item">
+                        <i class="fas fa-utensils text-danger me-2"></i>
+                        <strong>Eat Local & Seasonal:</strong> Reduce food transport emissions
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Comparison Card -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-globe-africa me-2"></i>East Africa Averages
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <h3>1,800 kg</h3>
+                    <p class="text-muted">Average CO₂e per capita in East Africa</p>
+                    <hr>
+                    <p class="small text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Global average: 4,800 kg CO₂e/year
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize carbon calculator
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof carbonCalculator !== 'undefined') {
+            window.calculator = carbonCalculator;
+        }
+    });
+    
+    // Reset form
+    function resetForm() {
+        if (confirm('Are you sure you want to reset the form?')) {
+            document.getElementById('carbonCalculatorForm').reset();
+            localStorage.removeItem('carbonCalculatorData');
+            document.getElementById('carbonResult').style.display = 'none';
+            
+            // Reset live estimate
+            const liveEstimate = document.getElementById('liveEstimate');
+            if (liveEstimate) {
+                liveEstimate.textContent = '-- kg CO₂e/year';
+                liveEstimate.className = 'badge bg-secondary ms-2';
+            }
+            
+            // Reset chart
+            if (window.calculator?.chart) {
+                window.calculator.chart.destroy();
+                window.calculator.chart = null;
+            }
+        }
+    }
+    
+    // View previous calculation details
+    function viewDetails(calculationId) {
+        // This would typically fetch details via API
+        alert('Detailed view for calculation #' + calculationId + ' would be displayed here.');
+        
+        // In a real implementation, you would:
+        // 1. Fetch the calculation data via API
+        // 2. Display it in a modal or update the results section
+        // 3. Update the chart with the historical data
+    }
+</script>
+{% endblock %}

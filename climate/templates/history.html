@@ -1,0 +1,365 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ menu_translations.history }} - {{ menu_translations.app_name }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1><i class="fas fa-history me-2"></i>{{ menu_translations.history }}</h1>
+        <p class="text-muted">Browse historical climate data and trends</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <div class="btn-group" role="group">
+            <a href="{% url 'export_climate_data_csv' %}" class="btn btn-outline-primary">
+                <i class="fas fa-download me-1"></i> Export CSV
+            </a>
+            <button class="btn btn-primary" onclick="showFilterModal()">
+                <i class="fas fa-filter me-1"></i> Filter Data
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Summary -->
+{% if form.is_bound %}
+<div class="alert alert-info mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fas fa-filter me-2"></i>
+            <strong>Active Filters:</strong>
+            {% if form.cleaned_data.region %} Region: {{ form.cleaned_data.region.name }} |{% endif %}
+            {% if form.cleaned_data.start_date %} From: {{ form.cleaned_data.start_date }} |{% endif %}
+            {% if form.cleaned_data.end_date %} To: {{ form.cleaned_data.end_date }} |{% endif %}
+            Data Type: {{ form.cleaned_data.get_data_type_display }}
+        </div>
+        <a href="{% url 'history' %}" class="btn btn-sm btn-outline-danger">
+            <i class="fas fa-times me-1"></i> Clear Filters
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Statistics -->
+{% if stats %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value">{{ stats.avg_temp|floatformat:1 }}°C</div>
+            <div class="stat-label">Average Temperature</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value">{{ stats.total_rainfall|floatformat:1 }} mm</div>
+            <div class="stat-label">Total Rainfall</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value">{{ stats.avg_humidity|floatformat:1 }}%</div>
+            <div class="stat-label">Average Humidity</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value">{{ page_obj.paginator.count }}</div>
+            <div class="stat-label">Total Records</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Historical Data Table -->
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-table me-2"></i>Climate Data Records
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Region</th>
+                        <th>Temperature</th>
+                        <th>Humidity</th>
+                        <th>Rainfall</th>
+                        <th>Air Quality</th>
+                        <th>Wind Speed</th>
+                        <th>Source</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for data in page_obj %}
+                    <tr>
+                        <td>
+                            {{ data.timestamp|date:"Y-m-d H:i" }}<br>
+                            <small class="text-muted">{{ data.timestamp|timesince }} ago</small>
+                        </td>
+                        <td>
+                            <strong>{{ data.region.name }}</strong><br>
+                            <small class="text-muted">{{ data.region.country }}</small>
+                        </td>
+                        <td>
+                            <span class="badge {% if data.temperature > 30 %}bg-danger{% elif data.temperature > 25 %}bg-warning{% else %}bg-primary{% endif %}">
+                                {{ data.temperature|floatformat:1 }}°C
+                            </span>
+                        </td>
+                        <td>{{ data.humidity|floatformat:1 }}%</td>
+                        <td>
+                            {% if data.rainfall > 0 %}
+                            <span class="badge bg-info">{{ data.rainfall|floatformat:1 }} mm</span>
+                            {% else %}
+                            <span class="text-muted">0 mm</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if data.air_quality_index %}
+                            <span class="badge {% if data.air_quality_index <= 50 %}bg-success{% elif data.air_quality_index <= 100 %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ data.air_quality_index|floatformat:0 }} AQI
+                            </span>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ data.wind_speed|floatformat:1 }} m/s</td>
+                        <td>
+                            <span class="badge bg-secondary">
+                                {{ data.source }}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewDataDetails({{ data.id }})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">
+                            <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                            <h5>No climate data found</h5>
+                            <p class="text-muted">Try adjusting your filters or check back later</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if page_obj.paginator.num_pages > 1 %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Time Series Chart -->
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="fas fa-chart-line me-2"></i>Temperature Trends
+    </div>
+    <div class="card-body">
+        <div class="chart-container" style="height: 400px;">
+            <canvas id="historyChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-filter me-2"></i>Filter Climate Data</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="get" id="filterForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="id_region" class="form-label">Region</label>
+                        {{ form.region }}
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_start_date" class="form-label">Start Date</label>
+                            {{ form.start_date }}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_end_date" class="form-label">End Date</label>
+                            {{ form.end_date }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_data_type" class="form-label">Data Type</label>
+                        {{ form.data_type }}
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="latestOnly">
+                        <label class="form-check-label" for="latestOnly">
+                            Show only latest reading per region
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize chart
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeHistoryChart();
+    });
+    
+    function initializeHistoryChart() {
+        const ctx = document.getElementById('historyChart').getContext('2d');
+        
+        // Sample data - in production, fetch from API
+        const data = {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+            datasets: [{
+                label: 'Average Temperature (°C)',
+                data: [22.5, 23.1, 22.8, 21.9, 21.2, 20.5, 20.1],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderWidth: 2,
+                fill: true
+            }, {
+                label: 'Rainfall (mm)',
+                data: [50, 45, 80, 120, 150, 100, 70],
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderWidth: 2,
+                fill: true,
+                yAxisID: 'y1'
+            }]
+        };
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                stacked: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Climate Trends Over Time'
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Temperature (°C)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Rainfall (mm)'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
+                }
+            }
+        });
+    }
+    
+    function showFilterModal() {
+        const modal = new bootstrap.Modal(document.getElementById('filterModal'));
+        modal.show();
+    }
+    
+    function viewDataDetails(dataId) {
+        // In a real implementation, this would fetch and display detailed data
+        alert(`Viewing details for data record #${dataId}\n\nThis would typically show:\n- Full data record\n- Charts for this location\n- Related predictions\n- Export options`);
+        
+        // Example of what could be implemented:
+        // fetch(`/api/climate-data/${dataId}/`)
+        //     .then(response => response.json())
+        //     .then(data => {
+        //         // Show data in a modal
+        //         showDataModal(data);
+        //     });
+    }
+    
+    // Auto-submit filter form when dates change
+    document.getElementById('id_start_date')?.addEventListener('change', function() {
+        if (this.value && document.getElementById('id_end_date').value) {
+            document.getElementById('filterForm').submit();
+        }
+    });
+    
+    document.getElementById('id_end_date')?.addEventListener('change', function() {
+        if (this.value && document.getElementById('id_start_date').value) {
+            document.getElementById('filterForm').submit();
+        }
+    });
+</script>
+{% endblock %}

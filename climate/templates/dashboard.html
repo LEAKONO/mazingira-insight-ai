@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - {{ menu_translations.app_name }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1><i class="fas fa-tachometer-alt me-2"></i>Climate Dashboard</h1>
+        <p class="text-muted">Real-time climate monitoring and predictions for East Africa</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <button class="btn btn-primary" onclick="refreshData()">
+            <i class="fas fa-sync-alt me-1"></i> Refresh Data
+        </button>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value">{{ temp_stats.avg_temp|floatformat:1 }}°C</div>
+            <div class="stat-label">Avg Temperature</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value">{{ temp_stats.max_temp|floatformat:1 }}°C</div>
+            <div class="stat-label">Max Temperature</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value">{{ temp_stats.min_temp|floatformat:1 }}°C</div>
+            <div class="stat-label">Min Temperature</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="stat-value">{{ regions_with_data|length }}</div>
+            <div class="stat-label">Active Regions</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-thermometer-half me-2"></i>Temperature Trends
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="temperatureChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-cloud-rain me-2"></i>Rainfall Distribution
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="rainfallChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Data & Predictions -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-map-marker-alt me-2"></i>Latest Climate Data by Region
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Region</th>
+                                <th>Temperature</th>
+                                <th>Humidity</th>
+                                <th>Rainfall</th>
+                                <th>Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for region_data in regions_with_data %}
+                            <tr>
+                                <td>
+                                    <strong>{{ region_data.region.name }}</strong><br>
+                                    <small class="text-muted">{{ region_data.region.country }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge {% if region_data.data.temperature > 30 %}bg-danger{% elif region_data.data.temperature > 25 %}bg-warning{% else %}bg-primary{% endif %}">
+                                        {{ region_data.data.temperature|floatformat:1 }}°C
+                                    </span>
+                                </td>
+                                <td>{{ region_data.data.humidity|floatformat:1 }}%</td>
+                                <td>{{ region_data.data.rainfall|floatformat:1 }} mm</td>
+                                <td>{{ region_data.data.timestamp|timesince }} ago</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No climate data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-line me-2"></i>Temperature Predictions
+            </div>
+            <div class="card-body">
+                {% if predictions %}
+                <div class="list-group">
+                    {% for prediction in predictions %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ prediction.region.name }}</h6>
+                                <small class="text-muted">
+                                    {{ prediction.prediction_date|date:"M d, Y" }}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-primary fs-6">
+                                    {{ prediction.predicted_temperature|floatformat:1 }}°C
+                                </span>
+                                {% if prediction.temperature_lower and prediction.temperature_upper %}
+                                <div class="text-muted" style="font-size: 0.8rem;">
+                                    {{ prediction.temperature_lower|floatformat:1 }}°C - {{ prediction.temperature_upper|floatformat:1 }}°C
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if prediction.predicted_rainfall > 0 %}
+                        <small class="text-muted">
+                            <i class="fas fa-cloud-rain me-1"></i>
+                            Expected rainfall: {{ prediction.predicted_rainfall|floatformat:1 }} mm
+                        </small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <p>No predictions available yet.</p>
+                    <button class="btn btn-sm btn-outline-primary" onclick="generatePredictions()">
+                        Generate Predictions
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Carbon Footprint Quick View -->
+        {% if user_footprint %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-leaf me-2"></i>Your Carbon Footprint
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <h3>{{ user_footprint.total_co2e|floatformat:0 }} kg CO₂e</h3>
+                    <p class="text-muted">Per year</p>
+                    
+                    {% with emission_level=user_footprint.get_emission_level %}
+                    <span class="badge bg-{% if emission_level == 'Low' %}success{% elif emission_level == 'Moderate' %}warning{% else %}danger{% endif %} p-2 mb-3">
+                        {{ emission_level }} Emission Level
+                    </span>
+                    {% endwith %}
+                    
+                    <div class="progress mb-3" style="height: 20px;">
+                        <div class="progress-bar bg-success" style="width: 25%">Transport</div>
+                        <div class="progress-bar bg-warning" style="width: 30%">Electricity</div>
+                        <div class="progress-bar bg-primary" style="width: 35%">Diet</div>
+                        <div class="progress-bar bg-secondary" style="width: 10%">Waste</div>
+                    </div>
+                    
+                    <a href="{% url 'carbon_calculator' %}" class="btn btn-sm btn-outline-primary">
+                        Update Calculation
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Environmental Reports -->
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-flag me-2"></i>Recent Environmental Reports
+    </div>
+    <div class="card-body">
+        {% if recent_reports %}
+        <div class="row">
+            {% for report in recent_reports %}
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <span class="badge {% if report.report_type == 'flood' %}bg-primary{% elif report.report_type == 'drought' %}bg-warning{% elif report.report_type == 'pollution' %}bg-danger{% else %}bg-secondary{% endif %} mb-2">
+                            {{ report.get_report_type_display }}
+                        </span>
+                        <h6 class="card-title">{{ report.title }}</h6>
+                        <p class="card-text text-muted small">{{ report.description|truncatechars:100 }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                {{ report.region.name }}
+                            </small>
+                            <small class="text-muted">
+                                {{ report.created_at|timesince }} ago
+                            </small>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a href="{% url 'report_detail' report.id %}" class="btn btn-sm btn-outline-primary">
+                            View Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-flag fa-3x text-muted mb-3"></i>
+            <p>No environmental reports yet.</p>
+            <a href="{% url 'create_report' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Submit Report
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize charts
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof climateCharts !== 'undefined') {
+            climateCharts.initializeAllCharts();
+        }
+    });
+    
+    // Refresh data function
+    function refreshData() {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Refreshing...';
+        btn.disabled = true;
+        
+        // Simulate API call
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    }
+    
+    // Generate predictions
+    function generatePredictions() {
+        fetch('/api/predict-temperature/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                region_id: 1, // Default region
+                days_ahead: 7
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to generate predictions');
+        });
+    }
+</script>
+{% endblock %}
