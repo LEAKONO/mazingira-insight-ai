@@ -54,3 +54,7 @@ def language_switcher(request):
             ('sw', 'Swahili'),
         ]
     }
+
+
+# Alias for backward compatibility with old settings.py
+custom_context = language_switcher

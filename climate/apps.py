@@ -6,5 +6,10 @@ class ClimateConfig(AppConfig):
     name = 'climate'
     
     def ready(self):
-        # Import signals
-        import climate.signals
+        """Import signals when app is ready."""
+        # Import signals module
+        try:
+            import climate.signals
+        except ImportError:
+            # Signals module might not exist yet
+            pass
