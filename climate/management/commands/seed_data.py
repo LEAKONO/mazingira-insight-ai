@@ -1,14 +1,15 @@
 """
 Django management command to seed the database with sample data.
+FIXED VERSION - matches current model structure
 """
 
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
-from django.contrib.gis.geos import Point
 from django.utils import timezone
 from datetime import datetime, timedelta
 import random
 import json
+import math  # Using math instead of numpy
 
 from climate.models import Region, ClimateData, Prediction
 
@@ -98,36 +99,6 @@ class Command(BaseCommand):
                 'climate_zone': 'Tropical',
                 'elevation': 1190,
             },
-            {
-                'name': 'Kigali',
-                'country': 'Rwanda',
-                'latitude': -1.9706,
-                'longitude': 30.1044,
-                'population': 1300000,
-                'area_sq_km': 730,
-                'climate_zone': 'Tropical Highland',
-                'elevation': 1567,
-            },
-            {
-                'name': 'Dar es Salaam',
-                'country': 'Tanzania',
-                'latitude': -6.7924,
-                'longitude': 39.2083,
-                'population': 6000000,
-                'area_sq_km': 1393,
-                'climate_zone': 'Tropical Coastal',
-                'elevation': 12,
-            },
-            {
-                'name': 'Nakuru',
-                'country': 'Kenya',
-                'latitude': -0.3031,
-                'longitude': 36.0800,
-                'population': 600000,
-                'area_sq_km': 192,
-                'climate_zone': 'Tropical Highland',
-                'elevation': 1850,
-            },
         ]
         
         regions = []
@@ -136,12 +107,13 @@ class Command(BaseCommand):
                 name=data['name'],
                 country=data['country'],
                 defaults={
-                    'location': Point(data['longitude'], data['latitude']),
+                    'latitude': data['latitude'],
+                    'longitude': data['longitude'],
                     'population': data['population'],
                     'area_sq_km': data['area_sq_km'],
                     'climate_zone': data['climate_zone'],
                     'elevation': data['elevation'],
-                    'geojson': {
+                    'location_data': {  # Use location_data instead of geojson
                         'type': 'Point',
                         'coordinates': [data['longitude'], data['latitude']]
                     }
@@ -192,18 +164,18 @@ class Command(BaseCommand):
                 base_humidity = 65.0
                 base_rainfall = 3.0
             
-            # Generate hourly data
+            # Generate DAILY data (instead of hourly) to reduce complexity
             current_date = start_date
             while current_date <= end_date:
                 # Add some randomness
                 hour = current_date.hour
                 day_of_year = current_date.timetuple().tm_yday
                 
-                # Daily temperature variation
-                daily_variation = 8 * (np.sin(2 * np.pi * hour / 24) + 1) / 2
+                # Daily temperature variation using math.sin
+                daily_variation = 8 * (math.sin(2 * math.pi * hour / 24) + 1) / 2
                 
                 # Seasonal variation (simplified)
-                seasonal_variation = 5 * np.sin(2 * np.pi * day_of_year / 365)
+                seasonal_variation = 5 * math.sin(2 * math.pi * day_of_year / 365)
                 
                 # Calculate final values
                 temperature = base_temp + daily_variation + seasonal_variation + random.uniform(-2, 2)
@@ -237,11 +209,11 @@ class Command(BaseCommand):
                 
                 climate_data_objects.append(climate_data)
                 
-                # Move to next hour
-                current_date += timedelta(hours=1)
+                # Move to next DAY (not hour) to reduce data volume
+                current_date += timedelta(days=1)
         
-        # Bulk create in batches
-        batch_size = 1000
+        # Bulk create in smaller batches
+        batch_size = 100
         for i in range(0, len(climate_data_objects), batch_size):
             batch = climate_data_objects[i:i + batch_size]
             ClimateData.objects.bulk_create(batch)
@@ -297,7 +269,3 @@ class Command(BaseCommand):
         # Bulk create predictions
         Prediction.objects.bulk_create(prediction_objects)
         self.stdout.write(self.style.SUCCESS(f'Created {len(prediction_objects)} prediction records'))
-
-
-# Helper function for numpy operations
-import numpy as np
