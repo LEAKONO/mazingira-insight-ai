@@ -10,9 +10,9 @@ from django.views.generic import RedirectView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('climate.urls')),  # Main app URLs
+    path('', include('climate.urls')),  # Main app URLs (includes auth URLs)
     path('api/', include('climate.api.urls')),  # API endpoints
-    path('accounts/', include('django.contrib.auth.urls')),  # Authentication
+    # REMOVED: path('accounts/', include('django.contrib.auth.urls')),  # Conflict with climate.urls
     path('i18n/', include('django.conf.urls.i18n')),  # Internationalization
     
     # Redirect root to dashboard

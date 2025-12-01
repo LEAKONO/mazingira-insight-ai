@@ -182,3 +182,9 @@ LOGGING = {
 os.makedirs(BASE_DIR / 'logs', exist_ok=True)
 os.makedirs(BASE_DIR / 'media', exist_ok=True)
 os.makedirs(BASE_DIR / 'climate/ml/models', exist_ok=True)
+
+# ADD AUTHENTICATION SETTINGS HERE:
+# Authentication settings
+LOGIN_REDIRECT_URL = '/'  # Redirect to home after login
+LOGOUT_REDIRECT_URL = '/'  # Redirect to home after logout
+LOGIN_URL = 'login'  # URL name for login view

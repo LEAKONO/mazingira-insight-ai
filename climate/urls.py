@@ -15,12 +15,12 @@ urlpatterns = [
     path('history/', views.history_view, name='history'),
     
     # Authentication
-    path('login/', auth_views.LoginView.as_view(
-        template_name='login.html',
+    path('accounts/login/', auth_views.LoginView.as_view(
+        template_name='registration/login.html',  # CHANGED: Added 'registration/'
         redirect_authenticated_user=True
     ), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
-    path('register/', views.register, name='register'),
+    path('accounts/logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
+    path('accounts/register/', views.register, name='register'),
     
     # User-specific pages
     path('profile/', views.profile, name='profile'),
