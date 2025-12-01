@@ -5,6 +5,7 @@ Database models for the climate monitoring application.
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+import json
 
 
 class Region(models.Model):
@@ -14,7 +15,7 @@ class Region(models.Model):
     name = models.CharField(max_length=200, help_text="Region name (e.g., Nairobi, Mombasa)")
     country = models.CharField(max_length=100, default="Kenya")
     
-    # Geographic coordinates - using separate fields instead of PointField
+    # Geographic coordinates
     latitude = models.FloatField(blank=True, null=True, help_text="Latitude in decimal degrees")
     longitude = models.FloatField(blank=True, null=True, help_text="Longitude in decimal degrees")
     
