@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Climate Report - {{ region.name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2cm;
+            border-bottom: 3px solid #2e7d32;
+            padding-bottom: 1cm;
+        }
+        
+        .header h1 {
+            color: #2e7d32;
+            margin-bottom: 0.5cm;
+        }
+        
+        .header .subtitle {
+            color: #666;
+            font-size: 1.2em;
+        }
+        
+        .section {
+            margin-bottom: 1.5cm;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            color: #2e7d32;
+            border-bottom: 2px solid #4caf50;
+            padding-bottom: 0.3cm;
+            margin-bottom: 0.8cm;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5cm;
+            margin-bottom: 1cm;
+        }
+        
+        .stat-card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 0.5cm;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1cm;
+        }
+        
+        th {
+            background-color: #2e7d32;
+            color: white;
+            padding: 0.5cm;
+            text-align: left;
+        }
+        
+        td {
+            padding: 0.5cm;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .footer {
+            margin-top: 2cm;
+            padding-top: 1cm;
+            border-top: 1px solid #ddd;
+            font-size: 0.9em;
+            color: #666;
+            text-align: center;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 1cm;
+        }
+        
+        .logo img {
+            height: 60px;
+        }
+        
+        .print-date {
+            text-align: right;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 1cm;
+        }
+        
+        .page-break {
+            page-break-before: always;
+        }
+        
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 0.8cm;
+            border-radius: 5px;
+            margin-bottom: 1cm;
+        }
+        
+        .recommendation {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 0.8cm;
+            border-radius: 5px;
+            margin-bottom: 1cm;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">
+        <h2 style="color: #2e7d32; margin: 0;">🌿 Mazingira Insight AI</h2>
+        <p style="color: #666; margin: 0;">Climate Monitoring & Prediction Platform</p>
+    </div>
+    
+    <div class="print-date">
+        Report generated: {% now "F j, Y, g:i a" %}
+    </div>
+    
+    <div class="header">
+        <h1>Climate Analysis Report</h1>
+        <div class="subtitle">{{ region.name }}, {{ region.country }}</div>
+        <p>Period: {{ start_date|date:"F j, Y" }} to {{ end_date|date:"F j, Y" }}</p>
+    </div>
+    
+    <!-- Region Overview -->
+    <div class="section">
+        <h2 class="section-title">Region Overview</h2>
+        
+        <table>
+            <tr>
+                <td><strong>Region Name:</strong></td>
+                <td>{{ region.name }}</td>
+                <td><strong>Country:</strong></td>
+                <td>{{ region.country }}</td>
+            </tr>
+            {% if region.population %}
+            <tr>
+                <td><strong>Population:</strong></td>
+                <td>{{ region.population|floatformat:0|default:"N/A" }}</td>
+                <td><strong>Area:</strong></td>
+                <td>{{ region.area_sq_km|floatformat:0|default:"N/A" }} km²</td>
+            </tr>
+            {% endif %}
+            {% if region.elevation %}
+            <tr>
+                <td><strong>Elevation:</strong></td>
+                <td>{{ region.elevation|floatformat:0 }} meters</td>
+                <td><strong>Climate Zone:</strong></td>
+                <td>{{ region.climate_zone|default:"N/A" }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+    
+    <!-- Climate Statistics -->
+    <div class="section">
+        <h2 class="section-title">Climate Statistics ({{ start_date|date:"M j" }} - {{ end_date|date:"M j, Y" }})</h2>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.avg_temp|floatformat:1|default:"N/A" }}°C</div>
+                <div class="stat-label">Average Temperature</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.max_temp|floatformat:1|default:"N/A" }}°C</div>
+                <div class="stat-label">Maximum Temperature</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.min_temp|floatformat:1|default:"N/A" }}°C</div>
+                <div class="stat-label">Minimum Temperature</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.total_rainfall|floatformat:1|default:"N/A" }} mm</div>
+                <div class="stat-label">Total Rainfall</div>
+            </div>
+        </div>
+        
+        {% if stats.avg_humidity %}
+        <div class="stat-card" style="width: 50%; margin: 0 auto;">
+            <div class="stat-value">{{ stats.avg_humidity|floatformat:1 }}%</div>
+            <div class="stat-label">Average Humidity</div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Recent Climate Data -->
+    <div class="section">
+        <h2 class="section-title">Recent Climate Data (Last 50 Records)</h2>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Temperature (°C)</th>
+                    <th>Humidity (%)</th>
+                    <th>Rainfall (mm)</th>
+                    <th>Air Quality</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for data in climate_data %}
+                <tr>
+                    <td>{{ data.timestamp|date:"M j, H:i" }}</td>
+                    <td>{{ data.temperature|floatformat:1 }}</td>
+                    <td>{{ data.humidity|floatformat:1 }}</td>
+                    <td>{{ data.rainfall|floatformat:1 }}</td>
+                    <td>{{ data.air_quality_index|floatformat:0|default:"N/A" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center;">No climate data available</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Analysis & Recommendations -->
+    <div class="section">
+        <h2 class="section-title">Analysis & Recommendations</h2>
+        
+        {% if stats.avg_temp > 30 %}
+        <div class="warning">
+            <h3 style="color: #856404; margin-top: 0;">⚠ High Temperature Alert</h3>
+            <p>Average temperatures exceed 30°C, indicating potential heat stress conditions. Recommendations:</p>
+            <ul>
+                <li>Implement heat wave preparedness measures</li>
+                <li>Monitor vulnerable populations (elderly, children)</li>
+                <li>Promote water conservation practices</li>
+                <li>Schedule outdoor activities during cooler hours</li>
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% if stats.total_rainfall > 100 %}
+        <div class="warning">
+            <h3 style="color: #856404; margin-top: 0;">⚠ High Rainfall Alert</h3>
+            <p>Significant rainfall detected. Recommendations:</p>
+            <ul>
+                <li>Monitor river levels and drainage systems</li>
+                <li>Prepare for potential flooding in low-lying areas</li>
+                <li>Check infrastructure integrity (roads, bridges)</li>
+                <li>Update emergency response plans</li>
+            </ul>
+        </div>
+        {% endif %}
+        
+        <div class="recommendation">
+            <h3 style="color: #0c5460; margin-top: 0;">🌱 Climate Resilience Recommendations</h3>
+            <p>Based on the climate data analysis, consider these actions to enhance climate resilience:</p>
+            <ul>
+                <li><strong>Water Management:</strong> Implement rainwater harvesting systems</li>
+                <li><strong>Agriculture:</strong> Promote drought-resistant crops and sustainable farming</li>
+                <li><strong>Infrastructure:</strong> Strengthen buildings against extreme weather</li>
+                <li><strong>Community:</strong> Establish early warning systems and community preparedness</li>
+                <li><strong>Monitoring:</strong> Continue regular climate data collection and analysis</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Data Summary -->
+    <div class="section">
+        <h2 class="section-title">Data Summary</h2>
+        
+        <table>
+            <tr>
+                <td><strong>Report Period:</strong></td>
+                <td>{{ start_date|date:"F j, Y" }} to {{ end_date|date:"F j, Y" }}</td>
+            </tr>
+            <tr>
+                <td><strong>Data Points Analyzed:</strong></td>
+                <td>{{ climate_data|length }} records</td>
+            </tr>
+            <tr>
+                <td><strong>Data Source:</strong></td>
+                <td>Mazingira Insight AI Climate Monitoring System</td>
+            </tr>
+            <tr>
+                <td><strong>Report Generated:</strong></td>
+                <td>{% now "F j, Y, g:i a" %}</td>
+            </tr>
+            <tr>
+                <td><strong>Report ID:</strong></td>
+                <td>CLIM-{{ region.id }}-{% now "Ymd-His" %}</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="footer">
+        <p>
+            <strong>Mazingira Insight AI</strong><br>
+            Climate Monitoring & Prediction Platform<br>
+            Email: info@mazingirainsight.ai | Web: https://mazingirainsight.ai
+        </p>
+        <p style="font-size: 0.8em; color: #999;">
+            This report is generated automatically by the Mazingira Insight AI system.<br>
+            Data is subject to verification. For official use, please verify with primary sources.
+        </p>
+        <p style="font-size: 0.8em; color: #999; margin-top: 1cm;">
+            Page 1 of 1 | Report generated on {% now "Y-m-d\TH:i:s" %}
+        </p>
+    </div>
+</body>
+</html>

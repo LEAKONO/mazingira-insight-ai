@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Environmental Reports - {{ menu_translations.app_name }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1><i class="fas fa-flag me-2"></i>Environmental Reports</h1>
+        <p class="text-muted">Community-reported environmental issues and events</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'create_report' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Submit New Report
+        </a>
+    </div>
+</div>
+
+<!-- Filter Section -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="mb-3">
+            <i class="fas fa-filter me-2"></i>Filter Reports
+        </h5>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <label class="form-label">Report Type</label>
+                <select class="form-select" id="typeFilter" onchange="filterReports()">
+                    <option value="">All Types</option>
+                    {% for type_code, type_name in report_types %}
+                    <option value="{{ type_code }}" {% if request.GET.type == type_code %}selected{% endif %}>
+                        {{ type_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="statusFilter" onchange="filterReports()">
+                    <option value="">All Statuses</option>
+                    <option value="reported">Reported</option>
+                    <option value="verified">Verified</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">Region</label>
+                <select class="form-select" id="regionFilter" onchange="filterReports()">
+                    <option value="">All Regions</option>
+                    <option value="nairobi">Nairobi</option>
+                    <option value="mombasa">Mombasa</option>
+                    <option value="kisumu">Kisumu</option>
+                    <option value="arusha">Arusha</option>
+                    <option value="kampala">Kampala</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">Time Period</label>
+                <select class="form-select" id="timeFilter" onchange="filterReports()">
+                    <option value="">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">Past Week</option>
+                    <option value="month">Past Month</option>
+                    <option value="year">Past Year</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reports Grid -->
+<div class="row">
+    {% for report in page_obj %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">{{ report.title|truncatechars:40 }}</h5>
+                        <small class="text-muted">
+                            <i class="fas fa-map-marker-alt me-1"></i>
+                            {{ report.region.name }}, {{ report.region.country }}
+                        </small>
+                    </div>
+                    <span class="badge {% if report.report_type == 'flood' %}bg-primary{% elif report.report_type == 'drought' %}bg-warning{% elif report.report_type == 'pollution' %}bg-danger{% else %}bg-secondary{% endif %}">
+                        {{ report.get_report_type_display }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <p>{{ report.description|truncatechars:150 }}</p>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <small class="text-muted">
+                            <i class="fas fa-user me-1"></i>
+                            {{ report.user.username|default:"Anonymous" }}
+                        </small>
+                    </div>
+                    <div class="col-6 text-end">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            {{ report.created_at|timesince }} ago
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge {% if report.status == 'reported' %}bg-secondary{% elif report.status == 'verified' %}bg-info{% elif report.status == 'in_progress' %}bg-warning{% else %}bg-success{% endif %}">
+                        {{ report.get_status_display }}
+                    </span>
+                    
+                    {% if report.photo %}
+                    <span class="badge bg-info">
+                        <i class="fas fa-camera me-1"></i> Has Photo
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-footer bg-transparent">
+                <a href="{% url 'report_detail' report.id %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-eye me-1"></i> View Details
+                </a>
+                <button class="btn btn-sm btn-outline-secondary" onclick="shareReport({{ report.id }})">
+                    <i class="fas fa-share-alt me-1"></i> Share
+                </button>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h4>No Reports Found</h4>
+                <p class="text-muted">No environmental reports match your filters. Try adjusting your search criteria.</p>
+                <a href="{% url 'create_report' %}" class="btn btn-primary mt-2">
+                    <i class="fas fa-plus me-1"></i> Be the first to submit a report
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if page_obj.paginator.num_pages > 1 %}
+<nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                <i class="fas fa-angle-double-left"></i>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                <i class="fas fa-angle-left"></i>
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+            </li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                <i class="fas fa-angle-right"></i>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                <i class="fas fa-angle-double-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<!-- Statistics Section -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-chart-pie me-2"></i>
+            Reports Statistics
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-3 mb-3">
+                <div class="stat-card">
+                    <div class="stat-value">{{ page_obj.paginator.count }}</div>
+                    <div class="stat-label">Total Reports</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="floodCount">--</div>
+                    <div class="stat-label">Flood Reports</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="resolvedCount">--</div>
+                    <div class="stat-label">Resolved</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stat-card">
+                    <div class="stat-value" id="activeCount">--</div>
+                    <div class="stat-label">Active</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Filter reports function
+    function filterReports() {
+        const type = document.getElementById('typeFilter').value;
+        const status = document.getElementById('statusFilter').value;
+        const region = document.getElementById('regionFilter').value;
+        const time = document.getElementById('timeFilter').value;
+        
+        let url = '{% url "reports_list" %}?';
+        const params = [];
+        
+        if (type) params.push(`type=${type}`);
+        if (status) params.push(`status=${status}`);
+        if (region) params.push(`region=${region}`);
+        if (time) params.push(`time=${time}`);
+        
+        window.location.href = url + params.join('&');
+    }
+    
+    // Share report function
+    function shareReport(reportId) {
+        const url = `${window.location.origin}/reports/${reportId}/`;
+        
+        if (navigator.share) {
+            navigator.share({
+                title: 'Environmental Report',
+                text: 'Check out this environmental report on Mazingira Insight AI',
+                url: url
+            });
+        } else {
+            // Fallback: copy to clipboard
+            navigator.clipboard.writeText(url).then(function() {
+                alert('Report link copied to clipboard!');
+            });
+        }
+    }
+    
+    // Load statistics
+    document.addEventListener('DOMContentLoaded', function() {
+        // In a real implementation, fetch statistics from API
+        setTimeout(() => {
+            document.getElementById('floodCount').textContent = Math.floor(Math.random() * 50) + 10;
+            document.getElementById('resolvedCount').textContent = Math.floor(Math.random() * 30) + 5;
+            document.getElementById('activeCount').textContent = Math.floor(Math.random() * 20) + 5;
+        }, 500);
+    });
+    
+    // Initialize filters from URL
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (urlParams.get('type')) {
+            document.getElementById('typeFilter').value = urlParams.get('type');
+        }
+        if (urlParams.get('status')) {
+            document.getElementById('statusFilter').value = urlParams.get('status');
+        }
+        if (urlParams.get('region')) {
+            document.getElementById('regionFilter').value = urlParams.get('region');
+        }
+        if (urlParams.get('time')) {
+            document.getElementById('timeFilter').value = urlParams.get('time');
+        }
+    });
+</script>
+{% endblock %}

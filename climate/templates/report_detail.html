@@ -1,0 +1,526 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ report.title }} - {{ menu_translations.app_name }}{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'reports_list' %}">Environmental Reports</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ report.title|truncatechars:30 }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <!-- Report Header -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">{{ report.title }}</h4>
+                        <small class="text-muted">
+                            <i class="fas fa-map-marker-alt me-1"></i>
+                            {{ report.region.name }}, {{ report.region.country }}
+                        </small>
+                    </div>
+                    <div>
+                        <span class="badge {% if report.report_type == 'flood' %}bg-primary{% elif report.report_type == 'drought' %}bg-warning{% elif report.report_type == 'pollution' %}bg-danger{% else %}bg-secondary{% endif %} p-2">
+                            {{ report.get_report_type_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <h6>Description</h6>
+                        <p>{{ report.description|linebreaks }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6>Report Details</h6>
+                                <ul class="list-unstyled">
+                                    <li class="mb-2">
+                                        <i class="fas fa-user me-2"></i>
+                                        <strong>Submitted by:</strong><br>
+                                        {{ report.user.username|default:"Anonymous" }}
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-calendar me-2"></i>
+                                        <strong>Date:</strong><br>
+                                        {{ report.created_at|date:"F j, Y, g:i a" }}
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-sync-alt me-2"></i>
+                                        <strong>Last Updated:</strong><br>
+                                        {{ report.updated_at|date:"F j, Y, g:i a" }}
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-eye me-2"></i>
+                                        <strong>Visibility:</strong><br>
+                                        {% if report.is_public %}
+                                        <span class="badge bg-success">Public</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Private</span>
+                                        {% endif %}
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Report Status -->
+                <div class="mb-4">
+                    <h6>Report Status</h6>
+                    <div class="progress" style="height: 30px;">
+                        {% with width=25 %}
+                        <div class="progress-bar 
+                            {% if report.status == 'reported' %}bg-secondary
+                            {% elif report.status == 'verified' %}bg-info
+                            {% elif report.status == 'in_progress' %}bg-warning
+                            {% else %}bg-success{% endif %}" 
+                            style="width: {% if report.status == 'reported' %}25%
+                                        {% elif report.status == 'verified' %}50%
+                                        {% elif report.status == 'in_progress' %}75%
+                                        {% else %}100%{% endif %};">
+                            {{ report.get_status_display }}
+                        </div>
+                        {% endwith %}
+                    </div>
+                    <div class="d-flex justify-content-between mt-2">
+                        <small>Reported</small>
+                        <small>Verified</small>
+                        <small>In Progress</small>
+                        <small>Resolved</small>
+                    </div>
+                </div>
+                
+                <!-- Location Information -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Location Coordinates</h6>
+                        <div class="card">
+                            <div class="card-body">
+                                <p class="mb-1">
+                                    <i class="fas fa-map-pin me-2"></i>
+                                    <strong>Latitude:</strong> {{ report.latitude|floatformat:4 }}
+                                </p>
+                                <p class="mb-1">
+                                    <i class="fas fa-map-pin me-2"></i>
+                                    <strong>Longitude:</strong> {{ report.longitude|floatformat:4 }}
+                                </p>
+                                <a href="https://maps.google.com/?q={{ report.latitude }},{{ report.longitude }}" 
+                                   target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                                    <i class="fas fa-external-link-alt me-1"></i> Open in Google Maps
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Photo Section -->
+                    <div class="col-md-6">
+                        <h6>Photos</h6>
+                        {% if report.photo %}
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <img src="{{ report.photo.url }}" 
+                                     alt="Report Photo" 
+                                     class="img-fluid rounded mb-3"
+                                     style="max-height: 200px;">
+                                <br>
+                                <a href="{{ report.photo.url }}" 
+                                   target="_blank" 
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-expand me-1"></i> View Full Size
+                                </a>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-camera fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No photos uploaded</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Region Climate Data -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-thermometer-half me-2"></i>
+                    Current Climate Conditions in {{ report.region.name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                {% with latest_data=report.region.climate_data.last %}
+                {% if latest_data %}
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h3 class="text-primary">{{ latest_data.temperature|floatformat:1 }}°C</h3>
+                                <small class="text-muted">Temperature</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h3 class="text-info">{{ latest_data.humidity|floatformat:1 }}%</h3>
+                                <small class="text-muted">Humidity</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h3 class="text-success">{{ latest_data.rainfall|floatformat:1 }} mm</h3>
+                                <small class="text-muted">Rainfall</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h3 class="{% if latest_data.air_quality_index < 50 %}text-success{% elif latest_data.air_quality_index < 100 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ latest_data.air_quality_index|default:"N/A" }}
+                                </h3>
+                                <small class="text-muted">Air Quality</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted text-center">
+                    <i class="fas fa-clock me-1"></i>
+                    Last updated: {{ latest_data.timestamp|timesince }} ago
+                </p>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-cloud fa-3x text-muted mb-3"></i>
+                    <p>No climate data available for this region</p>
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+        
+        <!-- Actions for Report Owner -->
+        {% if user == report.user or user.is_staff %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Report Management</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Update Status</h6>
+                        <form method="post" action="{% url 'report_detail' report.id %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <select name="status" class="form-select">
+                                    <option value="reported" {% if report.status == 'reported' %}selected{% endif %}>
+                                        Reported
+                                    </option>
+                                    <option value="verified" {% if report.status == 'verified' %}selected{% endif %}>
+                                        Verified
+                                    </option>
+                                    <option value="in_progress" {% if report.status == 'in_progress' %}selected{% endif %}>
+                                        In Progress
+                                    </option>
+                                    <option value="resolved" {% if report.status == 'resolved' %}selected{% endif %}>
+                                        Resolved
+                                    </option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary" name="update_status">
+                                <i class="fas fa-save me-1"></i> Update Status
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Other Actions</h6>
+                        <div class="d-grid gap-2">
+                            <a href="#" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editModal">
+                                <i class="fas fa-edit me-1"></i> Edit Report
+                            </a>
+                            {% if user.is_staff %}
+                            <a href="{% url 'admin:climate_environmentalreport_change' report.id %}" 
+                               class="btn btn-outline-info" target="_blank">
+                                <i class="fas fa-user-shield me-1"></i> Admin Panel
+                            </a>
+                            {% endif %}
+                            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                <i class="fas fa-trash me-1"></i> Delete Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-md-4">
+        <!-- Map Preview -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-map-marked-alt me-2"></i>
+                    Location Map
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="reportMap" style="height: 300px; width: 100%;"></div>
+            </div>
+            <div class="card-footer">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Click and drag to explore the area
+                </small>
+            </div>
+        </div>
+        
+        <!-- Similar Reports -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-flag me-2"></i>
+                    Similar Reports in {{ report.region.name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                {% with similar_reports=report.region.environmentalreport_set.exclude(id=report.id).filter(is_public=True).order_by('-created_at')|slice:":5" %}
+                {% if similar_reports %}
+                <div class="list-group list-group-flush">
+                    {% for similar in similar_reports %}
+                    <a href="{% url 'report_detail' similar.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ similar.title|truncatechars:30 }}</h6>
+                            <small class="text-muted">{{ similar.created_at|timesince }} ago</small>
+                        </div>
+                        <p class="mb-1 text-muted small">{{ similar.description|truncatechars:60 }}</p>
+                        <small>
+                            <span class="badge {% if similar.report_type == 'flood' %}bg-primary{% elif similar.report_type == 'drought' %}bg-warning{% elif similar.report_type == 'pollution' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {{ similar.get_report_type_display }}
+                            </span>
+                            <span class="badge {% if similar.status == 'reported' %}bg-secondary{% elif similar.status == 'verified' %}bg-info{% elif similar.status == 'in_progress' %}bg-warning{% else %}bg-success{% endif %} ms-1">
+                                {{ similar.get_status_display }}
+                            </span>
+                        </small>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
+                    <p class="text-muted">No similar reports found</p>
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+        
+        <!-- Contact Information -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Need Help?
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">
+                    If this report requires immediate attention or you have additional information, please contact:
+                </p>
+                <ul class="list-unstyled small">
+                    <li class="mb-2">
+                        <i class="fas fa-phone me-2 text-primary"></i>
+                        <strong>Emergency Services:</strong> 999
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-envelope me-2 text-primary"></i>
+                        <strong>Environmental Authority:</strong> environment@gov.ke
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-globe me-2 text-primary"></i>
+                        <strong>County Government:</strong> {{ report.region.country }} Environmental Dept
+                    </li>
+                </ul>
+                <hr>
+                <p class="small text-muted">
+                    <i class="fas fa-lightbulb me-1"></i>
+                    <strong>Tip:</strong> Keep your report updated with new information to help authorities respond effectively.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editTitle" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="editTitle" name="title" value="{{ report.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editDescription" name="description" rows="4" required>{{ report.description }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editVisibility" class="form-label">Visibility</label>
+                        <select class="form-select" id="editVisibility" name="is_public">
+                            <option value="true" {% if report.is_public %}selected{% endif %}>Public</option>
+                            <option value="false" {% if not report.is_public %}selected{% endif %}>Private</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" name="edit_report">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">Delete Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this report?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    This action cannot be undone. All report data will be permanently deleted.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger" name="delete_report">
+                        <i class="fas fa-trash me-1"></i> Delete Permanently
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize map
+    document.addEventListener('DOMContentLoaded', function() {
+        // Create map centered on report location
+        const map = L.map('reportMap').setView([{{ report.latitude }}, {{ report.longitude }}], 12);
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(map);
+        
+        // Add marker for report location
+        const marker = L.marker([{{ report.latitude }}, {{ report.longitude }}]).addTo(map);
+        
+        // Add popup with report info
+        marker.bindPopup(`
+            <strong>{{ report.title }}</strong><br>
+            <small>{{ report.get_report_type_display }}</small><br>
+            <small>{{ report.created_at|date:"M d, Y" }}</small>
+        `).openPopup();
+        
+        // Add circle to show approximate area
+        L.circle([{{ report.latitude }}, {{ report.longitude }}], {
+            color: 'red',
+            fillColor: '#f03',
+            fillOpacity: 0.1,
+            radius: 1000  // 1km radius
+        }).addTo(map);
+        
+        // Add region boundary if available (simulated)
+        const regionBounds = L.latLngBounds(
+            [{{ report.latitude|add:"-0.1" }}, {{ report.longitude|add:"-0.1" }}],
+            [{{ report.latitude|add:"0.1" }}, {{ report.longitude|add:"0.1" }}]
+        );
+        L.rectangle(regionBounds, {color: "#2e7d32", weight: 2}).addTo(map);
+        
+        // Fit bounds to show both marker and region
+        map.fitBounds(regionBounds.pad(0.1));
+    });
+    
+    // Handle form submissions
+    document.addEventListener('DOMContentLoaded', function() {
+        // Update status form
+        const statusForm = document.querySelector('form[action*="update_status"]');
+        if (statusForm) {
+            statusForm.addEventListener('submit', function(e) {
+                // Add confirmation for status changes
+                const newStatus = this.querySelector('select[name="status"]').value;
+                if (newStatus === 'resolved') {
+                    if (!confirm('Mark this report as resolved? This will close it to further updates.')) {
+                        e.preventDefault();
+                    }
+                }
+            });
+        }
+        
+        // Delete confirmation
+        const deleteForm = document.querySelector('form[action*="delete_report"]');
+        if (deleteForm) {
+            deleteForm.addEventListener('submit', function(e) {
+                if (!confirm('Are you absolutely sure you want to delete this report? This cannot be undone.')) {
+                    e.preventDefault();
+                }
+            });
+        }
+    });
+    
+    // Print report function
+    function printReport() {
+        window.print();
+    }
+    
+    // Share report function
+    function shareReport() {
+        if (navigator.share) {
+            navigator.share({
+                title: '{{ report.title }}',
+                text: 'Check out this environmental report on Mazingira Insight AI',
+                url: window.location.href
+            });
+        } else {
+            // Fallback: copy to clipboard
+            navigator.clipboard.writeText(window.location.href).then(function() {
+                alert('Report link copied to clipboard!');
+            });
+        }
+    }
+</script>
+{% endblock %}

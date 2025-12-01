@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Profile - {{ menu_translations.app_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <!-- Profile Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-user-circle me-2"></i>
+                    Profile Information
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <div class="avatar-circle" style="width: 100px; height: 100px; background-color: #2e7d32; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                        <span style="color: white; font-size: 40px; font-weight: bold;">
+                            {{ user.username|first|upper }}
+                        </span>
+                    </div>
+                    <h4>{{ user.get_full_name|default:user.username }}</h4>
+                    <p class="text-muted">{{ user.email }}</p>
+                </div>
+                
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item">
+                        <strong>Member since:</strong><br>
+                        {{ user.date_joined|date:"F j, Y" }}
+                    </div>
+                    <div class="list-group-item">
+                        <strong>Last login:</strong><br>
+                        {{ user.last_login|date:"F j, Y, g:i a" }}
+                    </div>
+                    <div class="list-group-item">
+                        <strong>Account type:</strong><br>
+                        {% if user.is_staff %}
+                        <span class="badge bg-danger">Administrator</span>
+                        {% else %}
+                        <span class="badge bg-primary">Regular User</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                        <i class="fas fa-edit me-1"></i> Edit Profile
+                    </a>
+                    <a href="#" class="btn btn-outline-secondary mt-2">
+                        <i class="fas fa-key me-1"></i> Change Password
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    My Statistics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Carbon Calculations
+                        <span class="badge bg-primary rounded-pill">{{ carbon_footprints|length }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Environmental Reports
+                        <span class="badge bg-success rounded-pill">{{ user_reports|length }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Regions Monitored
+                        <span class="badge bg-info rounded-pill">5</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Contribution Score
+                        <span class="badge bg-warning rounded-pill">85/100</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <!-- Recent Carbon Footprints -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-leaf me-2"></i>
+                        Recent Carbon Footprint Calculations
+                    </h5>
+                    <a href="{% url 'carbon_calculator' %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i> New Calculation
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if carbon_footprints %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Total CO₂e</th>
+                                <th>Transport</th>
+                                <th>Electricity</th>
+                                <th>Diet</th>
+                                <th>Emission Level</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for footprint in carbon_footprints %}
+                            <tr>
+                                <td>{{ footprint.calculation_date|date:"M d, Y" }}</td>
+                                <td>
+                                    <strong>{{ footprint.total_co2e|floatformat:0 }} kg</strong>
+                                </td>
+                                <td>{{ footprint.transport_co2e|floatformat:0 }} kg</td>
+                                <td>{{ footprint.electricity_co2e|floatformat:0 }} kg</td>
+                                <td>{{ footprint.diet_co2e|floatformat:0 }} kg</td>
+                                <td>
+                                    <span class="badge {% if footprint.get_emission_level == 'Low' %}bg-success{% elif footprint.get_emission_level == 'Moderate' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ footprint.get_emission_level }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="viewFootprint({{ footprint.id }})">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-calculator fa-3x text-muted mb-3"></i>
+                    <h5>No Carbon Calculations Yet</h5>
+                    <p class="text-muted">Calculate your first carbon footprint to see your environmental impact</p>
+                    <a href="{% url 'carbon_calculator' %}" class="btn btn-primary">
+                        <i class="fas fa-calculator me-1"></i> Calculate Now
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- My Environmental Reports -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-flag me-2"></i>
+                        My Environmental Reports
+                    </h5>
+                    <a href="{% url 'create_report' %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i> New Report
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if user_reports %}
+                <div class="row">
+                    {% for report in user_reports %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge {% if report.report_type == 'flood' %}bg-primary{% elif report.report_type == 'drought' %}bg-warning{% elif report.report_type == 'pollution' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {{ report.get_report_type_display }}
+                                    </span>
+                                    <span class="badge {% if report.status == 'reported' %}bg-secondary{% elif report.status == 'verified' %}bg-info{% elif report.status == 'in_progress' %}bg-warning{% else %}bg-success{% endif %}">
+                                        {{ report.get_status_display }}
+                                    </span>
+                                </div>
+                                <h6>{{ report.title|truncatechars:40 }}</h6>
+                                <p class="text-muted small">{{ report.description|truncatechars:80 }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-map-marker-alt me-1"></i>
+                                        {{ report.region.name }}
+                                    </small>
+                                    <small class="text-muted">
+                                        {{ report.created_at|timesince }} ago
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <a href="{% url 'report_detail' report.id %}" class="btn btn-sm btn-outline-primary">
+                                    View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-flag fa-3x text-muted mb-3"></i>
+                    <h5>No Reports Yet</h5>
+                    <p class="text-muted">Submit your first environmental report to help monitor your region</p>
+                    <a href="{% url 'create_report' %}" class="btn btn-primary">
+                        <i class="fas fa-flag me-1"></i> Submit Report
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="firstName" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="firstName" name="first_name" value="{{ user.first_name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="lastName" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="lastName" name="last_name" value="{{ user.last_name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="organization" class="form-label">Organization (Optional)</label>
+                        <input type="text" class="form-control" id="organization" name="organization" placeholder="Your organization name">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" name="update_profile">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function viewFootprint(footprintId) {
+        // In a real implementation, this would show detailed footprint information
+        alert('Viewing detailed carbon footprint #' + footprintId + '\n\nThis would typically show:\n- Full calculation breakdown\n- Comparison with previous calculations\n- Detailed suggestions for reduction\n- Export options');
+    }
+    
+    // Profile picture upload (simplified)
+    const avatarCircle = document.querySelector('.avatar-circle');
+    if (avatarCircle) {
+        avatarCircle.addEventListener('click', function() {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.style.display = 'none';
+            
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // In a real implementation, upload the file
+                    alert('Profile picture upload would be implemented here');
+                }
+            });
+            
+            document.body.appendChild(fileInput);
+            fileInput.click();
+            document.body.removeChild(fileInput);
+        });
+        
+        // Add hover effect
+        avatarCircle.style.cursor = 'pointer';
+        avatarCircle.title = 'Click to change profile picture';
+    }
+</script>
+{% endblock %}

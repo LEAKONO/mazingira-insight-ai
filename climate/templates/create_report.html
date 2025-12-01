@@ -1,0 +1,666 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Submit Environmental Report - {{ menu_translations.app_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-flag me-2"></i>
+                    Submit Environmental Report
+                </h4>
+                <p class="text-muted mb-0">Help monitor environmental issues in your community</p>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="reportForm">
+                    {% csrf_token %}
+                    
+                    <!-- Step Progress -->
+                    <div class="mb-5">
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar" id="formProgress" style="width: 25%;"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span class="step active">1. Report Type</span>
+                            <span class="step">2. Details</span>
+                            <span class="step">3. Location</span>
+                            <span class="step">4. Review</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 1: Report Type -->
+                    <div class="step-content" id="step1">
+                        <h5 class="mb-4">
+                            <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                            What type of environmental issue are you reporting?
+                        </h5>
+                        
+                        <div class="row">
+                            {% for choice in form.report_type.field.choices %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card report-type-card" 
+                                     data-type="{{ choice.0 }}"
+                                     onclick="selectReportType('{{ choice.0 }}')">
+                                    <div class="card-body text-center">
+                                        <div class="mb-3">
+                                            {% if choice.0 == 'flood' %}
+                                            <i class="fas fa-water fa-3x text-primary"></i>
+                                            {% elif choice.0 == 'drought' %}
+                                            <i class="fas fa-sun fa-3x text-warning"></i>
+                                            {% elif choice.0 == 'pollution' %}
+                                            <i class="fas fa-smog fa-3x text-danger"></i>
+                                            {% elif choice.0 == 'haze' %}
+                                            <i class="fas fa-cloud fa-3x text-secondary"></i>
+                                            {% elif choice.0 == 'deforestation' %}
+                                            <i class="fas fa-tree fa-3x text-success"></i>
+                                            {% elif choice.0 == 'wildfire' %}
+                                            <i class="fas fa-fire fa-3x text-danger"></i>
+                                            {% else %}
+                                            <i class="fas fa-exclamation-circle fa-3x text-info"></i>
+                                            {% endif %}
+                                        </div>
+                                        <h6>{{ choice.1 }}</h6>
+                                        <small class="text-muted">
+                                            {% if choice.0 == 'flood' %}
+                                            Report flooded areas, waterlogging, or drainage issues
+                                            {% elif choice.0 == 'drought' %}
+                                            Report drought conditions, water scarcity, or crop failure
+                                            {% elif choice.0 == 'pollution' %}
+                                            Report air, water, or soil pollution incidents
+                                            {% elif choice.0 == 'haze' %}
+                                            Report haze, smog, or reduced visibility
+                                            {% elif choice.0 == 'deforestation' %}
+                                            Report illegal logging or deforestation activities
+                                            {% elif choice.0 == 'wildfire' %}
+                                            Report wildfires or bush fires
+                                            {% else %}
+                                            Report other environmental concerns
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <input type="hidden" name="report_type" id="id_report_type">
+                        
+                        <div class="mt-4 text-end">
+                            <button type="button" class="btn btn-primary" onclick="nextStep()" disabled id="nextStep1">
+                                Next <i class="fas fa-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 2: Details -->
+                    <div class="step-content" id="step2" style="display: none;">
+                        <h5 class="mb-4">
+                            <i class="fas fa-edit me-2 text-primary"></i>
+                            Provide Report Details
+                        </h5>
+                        
+                        <div class="mb-3">
+                            <label for="id_title" class="form-label">
+                                <i class="fas fa-heading me-1"></i> Report Title
+                            </label>
+                            {{ form.title }}
+                            <div class="form-text">Brief, descriptive title (e.g., "Flooding near River Road")</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="id_description" class="form-label">
+                                <i class="fas fa-align-left me-1"></i> Detailed Description
+                            </label>
+                            {{ form.description }}
+                            <div class="form-text">
+                                Describe what you observed, when it happened, and any relevant details.
+                                Include severity, affected areas, and potential causes if known.
+                            </div>
+                        </div>
+                        
+                        <!-- Photo Upload -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-camera me-1"></i> Upload Photos (Optional)
+                            </label>
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <div id="photoPreview" class="mb-3" style="display: none;">
+                                        <img id="previewImage" class="img-fluid rounded" style="max-height: 200px;">
+                                    </div>
+                                    <div id="uploadArea" class="py-4 border-dashed rounded" 
+                                         style="border: 2px dashed #dee2e6; cursor: pointer;"
+                                         onclick="document.getElementById('id_photo').click()">
+                                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">Click or drag to upload photos</p>
+                                        <small class="text-muted">Maximum file size: 5MB. Supported formats: JPG, PNG</small>
+                                    </div>
+                                    {{ form.photo }}
+                                    <input type="file" id="id_photo" name="photo" accept="image/*" style="display: none;" onchange="previewPhoto(event)">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep()">
+                                <i class="fas fa-arrow-left me-1"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="nextStep()">
+                                Next <i class="fas fa-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 3: Location -->
+                    <div class="step-content" id="step3" style="display: none;">
+                        <h5 class="mb-4">
+                            <i class="fas fa-map-marker-alt me-2 text-success"></i>
+                            Report Location
+                        </h5>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_region" class="form-label">
+                                        <i class="fas fa-globe-africa me-1"></i> Region
+                                    </label>
+                                    {{ form.region }}
+                                    <div class="form-text">Select the affected region</div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="id_latitude" class="form-label">Latitude</label>
+                                        {{ form.latitude }}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="id_longitude" class="form-label">Longitude</label>
+                                        {{ form.longitude }}
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <button type="button" class="btn btn-outline-primary" onclick="getCurrentLocation()">
+                                        <i class="fas fa-location-arrow me-1"></i> Use My Current Location
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-body p-0">
+                                        <div id="locationMap" style="height: 300px; width: 100%;"></div>
+                                    </div>
+                                    <div class="card-footer">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Click on the map to set the exact location
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-check mb-4">
+                            {{ form.is_public }}
+                            <label class="form-check-label" for="id_is_public">
+                                Make this report public
+                            </label>
+                            <div class="form-text">
+                                Public reports are visible to all users. Private reports are only visible to you and administrators.
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep()">
+                                <i class="fas fa-arrow-left me-1"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="nextStep()">
+                                Next <i class="fas fa-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 4: Review -->
+                    <div class="step-content" id="step4" style="display: none;">
+                        <h5 class="mb-4">
+                            <i class="fas fa-check-circle me-2 text-success"></i>
+                            Review Your Report
+                        </h5>
+                        
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h6>Report Summary</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <th>Report Type:</th>
+                                                <td id="reviewType">--</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Title:</th>
+                                                <td id="reviewTitle">--</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Region:</th>
+                                                <td id="reviewRegion">--</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Location:</th>
+                                                <td id="reviewLocation">--</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Visibility:</th>
+                                                <td id="reviewVisibility">--</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Description Preview:</strong>
+                                        <p id="reviewDescription" class="mt-2 text-muted" style="max-height: 150px; overflow-y: auto;">
+                                            --
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Before submitting:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Ensure all information is accurate and complete</li>
+                                <li>Verify that the location is correct</li>
+                                <li>Check that your description clearly explains the issue</li>
+                                <li>Review the visibility settings (public/private)</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="confirmAccuracy" required>
+                            <label class="form-check-label" for="confirmAccuracy">
+                                I confirm that the information provided is accurate to the best of my knowledge
+                            </label>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="prevStep()">
+                                <i class="fas fa-arrow-left me-1"></i> Back
+                            </button>
+                            <button type="submit" class="btn btn-success" id="submitButton" disabled>
+                                <i class="fas fa-paper-plane me-1"></i> Submit Report
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Help Information -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5><i class="fas fa-question-circle me-2"></i>Submission Guidelines</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="d-flex mb-3">
+                            <div class="me-3">
+                                <i class="fas fa-check-circle text-success"></i>
+                            </div>
+                            <div>
+                                <h6>Do Include:</h6>
+                                <ul class="small text-muted">
+                                    <li>Specific location details</li>
+                                    <li>Date and time of observation</li>
+                                    <li>Clear descriptions and photos</li>
+                                    <li>Severity assessment</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex mb-3">
+                            <div class="me-3">
+                                <i class="fas fa-times-circle text-danger"></i>
+                            </div>
+                            <div>
+                                <h6>Avoid Including:</h6>
+                                <ul class="small text-muted">
+                                    <li>Personal opinions or speculation</li>
+                                    <li>Unverified information</li>
+                                    <li>Personal contact information</li>
+                                    <li>Offensive or inappropriate content</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-shield-alt me-1"></i>
+                    <strong>Privacy Note:</strong> Your report may be shared with relevant authorities for verification and action.
+                    Personal information is protected according to our privacy policy.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentStep = 1;
+    let map = null;
+    let marker = null;
+    
+    // Initialize form
+    document.addEventListener('DOMContentLoaded', function() {
+        updateStepProgress();
+        
+        // Initialize map if we're on step 3
+        if (document.getElementById('locationMap')) {
+            initMap();
+        }
+        
+        // Watch for accuracy confirmation
+        document.getElementById('confirmAccuracy')?.addEventListener('change', function() {
+            document.getElementById('submitButton').disabled = !this.checked;
+        });
+    });
+    
+    // Step navigation
+    function nextStep() {
+        if (validateStep(currentStep)) {
+            document.getElementById(`step${currentStep}`).style.display = 'none';
+            currentStep++;
+            document.getElementById(`step${currentStep}`).style.display = 'block';
+            updateStepProgress();
+            
+            // Update review on step 4
+            if (currentStep === 4) {
+                updateReview();
+            }
+        }
+    }
+    
+    function prevStep() {
+        document.getElementById(`step${currentStep}`).style.display = 'none';
+        currentStep--;
+        document.getElementById(`step${currentStep}`).style.display = 'block';
+        updateStepProgress();
+    }
+    
+    function updateStepProgress() {
+        const progress = (currentStep / 4) * 100;
+        document.getElementById('formProgress').style.width = `${progress}%`;
+        
+        // Update step indicators
+        document.querySelectorAll('.step').forEach((step, index) => {
+            step.classList.remove('active');
+            if (index + 1 === currentStep) {
+                step.classList.add('active');
+            }
+        });
+    }
+    
+    // Step validation
+    function validateStep(step) {
+        switch(step) {
+            case 1:
+                const selectedType = document.getElementById('id_report_type').value;
+                if (!selectedType) {
+                    alert('Please select a report type');
+                    return false;
+                }
+                return true;
+                
+            case 2:
+                const title = document.getElementById('id_title').value;
+                const description = document.getElementById('id_description').value;
+                
+                if (!title.trim()) {
+                    alert('Please enter a report title');
+                    return false;
+                }
+                
+                if (!description.trim() || description.trim().length < 20) {
+                    alert('Please provide a detailed description (at least 20 characters)');
+                    return false;
+                }
+                
+                return true;
+                
+            case 3:
+                const region = document.getElementById('id_region').value;
+                if (!region) {
+                    alert('Please select a region');
+                    return false;
+                }
+                return true;
+                
+            default:
+                return true;
+        }
+    }
+    
+    // Report type selection
+    function selectReportType(type) {
+        // Update active card
+        document.querySelectorAll('.report-type-card').forEach(card => {
+            card.classList.remove('selected');
+            card.style.borderColor = '';
+        });
+        
+        const selectedCard = document.querySelector(`[data-type="${type}"]`);
+        selectedCard.classList.add('selected');
+        selectedCard.style.borderColor = '#2e7d32';
+        selectedCard.style.borderWidth = '2px';
+        
+        // Update hidden field
+        document.getElementById('id_report_type').value = type;
+        
+        // Enable next button
+        document.getElementById('nextStep1').disabled = false;
+    }
+    
+    // Photo preview
+    function previewPhoto(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('photoPreview');
+                const image = document.getElementById('previewImage');
+                
+                image.src = e.target.result;
+                preview.style.display = 'block';
+                
+                // Update upload area text
+                document.getElementById('uploadArea').innerHTML = `
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <p class="text-success">Photo uploaded successfully</p>
+                    <small class="text-muted">Click to change photo</small>
+                `;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    // Map initialization
+    function initMap() {
+        map = L.map('locationMap').setView([-1.2921, 36.8219], 12); // Nairobi center
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(map);
+        
+        // Add click handler
+        map.on('click', function(e) {
+            if (marker) {
+                map.removeLayer(marker);
+            }
+            
+            marker = L.marker(e.latlng).addTo(map);
+            
+            // Update form fields
+            document.getElementById('id_latitude').value = e.latlng.lat.toFixed(6);
+            document.getElementById('id_longitude').value = e.latlng.lng.toFixed(6);
+        });
+        
+        // Watch for manual coordinate changes
+        document.getElementById('id_latitude')?.addEventListener('change', updateMapFromCoords);
+        document.getElementById('id_longitude')?.addEventListener('change', updateMapFromCoords);
+    }
+    
+    function updateMapFromCoords() {
+        const lat = parseFloat(document.getElementById('id_latitude').value);
+        const lng = parseFloat(document.getElementById('id_longitude').value);
+        
+        if (!isNaN(lat) && !isNaN(lng)) {
+            const newLatLng = L.latLng(lat, lng);
+            
+            if (marker) {
+                marker.setLatLng(newLatLng);
+            } else {
+                marker = L.marker(newLatLng).addTo(map);
+            }
+            
+            map.setView(newLatLng, 15);
+        }
+    }
+    
+    // Get current location
+    function getCurrentLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    document.getElementById('id_latitude').value = lat.toFixed(6);
+                    document.getElementById('id_longitude').value = lng.toFixed(6);
+                    
+                    updateMapFromCoords();
+                    
+                    alert('Location set successfully!');
+                },
+                function(error) {
+                    alert('Unable to get your location: ' + error.message);
+                }
+            );
+        } else {
+            alert('Geolocation is not supported by your browser');
+        }
+    }
+    
+    // Update review section
+    function updateReview() {
+        // Report type
+        const typeValue = document.getElementById('id_report_type').value;
+        const typeText = document.querySelector(`[data-type="${typeValue}"] h6`)?.textContent || '--';
+        document.getElementById('reviewType').textContent = typeText;
+        
+        // Title
+        document.getElementById('reviewTitle').textContent = document.getElementById('id_title').value || '--';
+        
+        // Region
+        const regionSelect = document.getElementById('id_region');
+        const regionText = regionSelect.options[regionSelect.selectedIndex]?.text || '--';
+        document.getElementById('reviewRegion').textContent = regionText;
+        
+        // Location
+        const lat = document.getElementById('id_latitude').value;
+        const lng = document.getElementById('id_longitude').value;
+        document.getElementById('reviewLocation').textContent = 
+            lat && lng ? `${lat}, ${lng}` : 'Not specified';
+        
+        // Description
+        document.getElementById('reviewDescription').textContent = 
+            document.getElementById('id_description').value || '--';
+        
+        // Visibility
+        const isPublic = document.getElementById('id_is_public').checked;
+        document.getElementById('reviewVisibility').textContent = isPublic ? 'Public' : 'Private';
+        document.getElementById('reviewVisibility').className = 
+            isPublic ? 'badge bg-success' : 'badge bg-warning';
+    }
+    
+    // Drag and drop for photos
+    document.addEventListener('DOMContentLoaded', function() {
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('id_photo');
+        
+        if (uploadArea) {
+            // Highlight on drag over
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.style.borderColor = '#2e7d32';
+                this.style.backgroundColor = '#f8f9fa';
+            });
+            
+            // Remove highlight on drag leave
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                this.style.borderColor = '#dee2e6';
+                this.style.backgroundColor = '';
+            });
+            
+            // Handle drop
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.style.borderColor = '#dee2e6';
+                this.style.backgroundColor = '';
+                
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    previewPhoto({target: fileInput});
+                }
+            });
+        }
+    });
+</script>
+
+<style>
+.step {
+    font-weight: 500;
+    color: #6c757d;
+    transition: all 0.3s ease;
+}
+
+.step.active {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.step-content {
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.report-type-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.report-type-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.report-type-card.selected {
+    border-color: #2e7d32 !important;
+    background-color: #f8f9fa;
+}
+
+.border-dashed {
+    border-style: dashed !important;
+}
+</style>
+{% endblock %}
