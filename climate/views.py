@@ -18,14 +18,12 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 import csv
 import datetime
-import random  # Added missing import
-from datetime import timedelta, datetime
+import random
+from datetime import timedelta
 from decimal import Decimal
 
 from .models import ClimateData, Region, CarbonFootprint, EnvironmentalReport, Prediction, MonthlyClimate
 from .forms import UserRegistrationForm, CarbonCalculatorForm, EnvironmentalReportForm, ClimateQueryForm
-from climate.models import ClimateData, Region, CarbonFootprint, EnvironmentalReport, Prediction, MonthlyClimate
-
 from .ml.predictor import ClimatePredictor
 from .api.weather_api import WeatherAPIClient
 
@@ -425,7 +423,7 @@ def prepare_monthly_trends_data():
         
         # Add historical data
         for data in historical_agg:
-            month_name = datetime(data['year'], data['month'], 1).strftime('%b')
+            month_name = datetime.datetime(data['year'], data['month'], 1).strftime('%b')
             label = f"{month_name} {data['year']}"
             labels.append(label)
             actual_temps.append(float(data['avg_temp']))
@@ -434,7 +432,7 @@ def prepare_monthly_trends_data():
             confidence_max.append(None)
         
         # Add current month separator
-        current_label = f"{datetime(current_year, current_month, 1).strftime('%b')} {current_year}"
+        current_label = f"{datetime.datetime(current_year, current_month, 1).strftime('%b')} {current_year}"
         if current_label in labels:
             current_idx = labels.index(current_label)
         else:
@@ -442,7 +440,7 @@ def prepare_monthly_trends_data():
         
         # Add predicted data
         for data in predicted_agg:
-            month_name = datetime(data['year'], data['month'], 1).strftime('%b')
+            month_name = datetime.datetime(data['year'], data['month'], 1).strftime('%b')
             label = f"{month_name} {data['year']}"
             # Avoid duplicate labels
             if label not in labels:
@@ -537,24 +535,41 @@ def map_view(request):
     Interactive map view with climate data.
     """
     regions = Region.objects.all()
+    
+    # Create proper GeoJSON
+    features = []
+    for region in regions:
+        feature = {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [region.longitude, region.latitude]
+            },
+            "properties": {
+                "id": region.id,
+                "name": region.name,
+                "country": region.country,
+                "latitude": region.latitude,
+                "longitude": region.longitude,
+                "population": region.population,
+                "climate_zone": region.climate_zone,
+            }
+        }
+        features.append(feature)
+    
     regions_geojson = {
         "type": "FeatureCollection",
-        "features": [region.to_geojson() for region in regions]
+        "features": features
     }
     
-    # Get climate data for markers
-    climate_data = ClimateData.objects.select_related('region').order_by('-timestamp')[:50]
-    
     context = {
+        'regions': regions,
         'regions_geojson': json.dumps(regions_geojson),
-        'climate_data': climate_data,
-        'map_center': [-1.2921, 36.8219],  # Nairobi coordinates
+        'map_center': json.dumps([-1.2921, 36.8219]),
         'map_zoom': 6,
     }
     
     return render(request, 'map.html', context)
-
-
 @login_required
 def carbon_calculator(request):
     """
@@ -1048,3 +1063,280 @@ def get_predictions(request):
         return JsonResponse({'error': 'Region not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+def weather_api(request):
+    """
+    SIMPLE weather API endpoint that works for ANY location.
+    Returns mock weather data for demonstration.
+    """
+    # Get parameters
+    lat = request.GET.get('lat') or request.GET.get('latitude')
+    lon = request.GET.get('lon') or request.GET.get('longitude') or request.GET.get('lng')
+    location = request.GET.get('location')
+    
+    print(f"Weather API called with: lat={lat}, lon={lon}, location={location}")
+    
+    # If no coordinates provided, use defaults
+    if not lat or not lon:
+        lat = -1.2921  # Nairobi
+        lon = 36.8219
+    
+    try:
+        # Convert to float
+        lat = float(lat)
+        lon = float(lon)
+    except (ValueError, TypeError):
+        lat = -1.2921
+        lon = 36.8219
+    
+    # Generate realistic weather data for ANY location
+    import random
+    from datetime import datetime
+    
+    # Base temperature varies with latitude
+    base_temp = 20 + (lat * 0.5)
+    
+    # Time of day variations
+    hour = datetime.now().hour
+    if 2 <= hour < 6:  # Early morning
+        temp_variation = -4
+    elif 6 <= hour < 10:  # Morning
+        temp_variation = -2
+    elif 10 <= hour < 14:  # Midday
+        temp_variation = 3
+    elif 14 <= hour < 18:  # Afternoon
+        temp_variation = 2
+    elif 18 <= hour < 22:  # Evening
+        temp_variation = -1
+    else:  # Night
+        temp_variation = -3
+    
+    temp_variation += random.uniform(-1, 1)
+    temperature = base_temp + temp_variation
+    
+    # Weather conditions based on location and temperature
+    # Africa-specific: warmer near equator, cooler at higher latitudes
+    if lat < -5:  # Southern Africa
+        if temperature > 25:
+            weather_main = 'Clear'
+            weather_desc = 'clear sky'
+        else:
+            weather_main = random.choice(['Clear', 'Clouds'])
+            weather_desc = random.choice(['clear sky', 'few clouds'])
+    elif lat > 5:  # Northern Africa
+        if temperature > 30:
+            weather_main = 'Clear'
+            weather_desc = 'clear sky'
+        else:
+            weather_main = random.choice(['Clear', 'Clouds'])
+            weather_desc = random.choice(['clear sky', 'scattered clouds'])
+    else:  # Equatorial Africa
+        if temperature > 28:
+            weather_main = 'Clear'
+            weather_desc = 'clear sky'
+        elif temperature > 25:
+            weather_main = random.choice(['Clear', 'Clouds'])
+            weather_desc = random.choice(['clear sky', 'few clouds'])
+        else:
+            weather_main = random.choice(['Clouds', 'Rain'])
+            weather_desc = random.choice(['broken clouds', 'scattered clouds', 'light rain'])
+    
+    # Humidity based on weather
+    if 'Rain' in weather_main:
+        humidity = random.randint(70, 95)
+    elif 'Clouds' in weather_main:
+        humidity = random.randint(60, 85)
+    else:
+        humidity = random.randint(40, 70)
+    
+    # Wind speed
+    wind_speed = random.uniform(1, 8)
+    
+    # Rainfall (more likely in equatorial regions)
+    if lat > -5 and lat < 5:  # Equatorial zone
+        rain_chance = 0.4
+    else:
+        rain_chance = 0.2
+    
+    if random.random() < rain_chance and 'Rain' in weather_main:
+        rainfall = random.uniform(0.5, 5)
+    else:
+        rainfall = 0
+    
+    # Create response
+    response_data = {
+        'main': {
+            'temp': round(temperature, 1),
+            'feels_like': round(temperature + random.uniform(-1, 2), 1),
+            'pressure': 1013 + random.randint(-10, 10),
+            'humidity': humidity,
+            'temp_min': round(temperature - 2, 1),
+            'temp_max': round(temperature + 2, 1),
+            'temperature': round(temperature, 1),  # Also include 'temperature' key for compatibility
+        },
+        'weather': [{
+            'main': weather_main,
+            'description': weather_desc,
+            'icon': '01d' if weather_main == 'Clear' else '03d'
+        }],
+        'wind': {
+            'speed': round(wind_speed, 1),
+            'deg': random.randint(0, 360),
+            'direction': random.randint(0, 360)
+        },
+        'rain': {
+            '1h': rainfall
+        } if rainfall > 0 else {},
+        'clouds': {
+            'all': random.randint(0, 100) if 'Clouds' in weather_main else random.randint(0, 30)
+        },
+        'dt': int(datetime.now().timestamp()),
+        'sys': {
+            'country': 'XX',
+            'sunrise': 1706500000,
+            'sunset': 1706543200
+        },
+        'timezone': 10800,
+        'name': 'Selected Location',
+        'id': 999999,
+        'coord': {
+            'lat': lat,
+            'lon': lon
+        },
+        'timestamp': datetime.now().isoformat(),
+        'source': 'mock_api'
+    }
+    
+    # Also include flat keys for simpler access
+    response_data['temperature'] = round(temperature, 1)
+    response_data['humidity'] = humidity
+    response_data['wind_speed'] = round(wind_speed, 1)
+    response_data['rainfall'] = rainfall
+    
+    return JsonResponse(response_data)
+
+@csrf_exempt
+def climate_data_api(request):
+    """
+    API endpoint to get climate data.
+    """
+    region_id = request.GET.get('region_id')
+    limit = int(request.GET.get('limit', 50))
+    days = int(request.GET.get('days', 7))
+    
+    # Calculate date range
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=days)
+    
+    # Get climate data
+    climate_data = ClimateData.objects.filter(
+        timestamp__range=[start_date, end_date]
+    ).select_related('region')
+    
+    if region_id:
+        climate_data = climate_data.filter(region_id=region_id)
+    
+    climate_data = climate_data.order_by('-timestamp')[:limit]
+    
+    # Format data - FIXED: Return as list, not dict with results key
+    data_list = []
+    for data in climate_data:
+        data_list.append({
+            'id': data.id,
+            'region': {
+                'id': data.region.id,
+                'name': data.region.name,
+                'country': data.region.country,
+                'latitude': data.region.latitude,
+                'longitude': data.region.longitude,
+            },
+            'timestamp': data.timestamp.isoformat(),
+            'temperature': data.temperature,
+            'humidity': data.humidity,
+            'rainfall': data.rainfall,
+            'air_quality_index': data.air_quality_index,
+            'wind_speed': data.wind_speed,
+            'wind_direction': data.wind_direction,
+            'pressure': data.pressure,
+            'source': data.source,
+        })
+    
+    # Return as array directly
+    return JsonResponse(data_list, safe=False)
+
+
+def reports_api(request):
+    """
+    API endpoint to get environmental reports.
+    """
+    limit = int(request.GET.get('limit', 10))
+    offset = int(request.GET.get('offset', 0))
+    region_id = request.GET.get('region_id')
+    
+    # Get reports
+    reports = EnvironmentalReport.objects.filter(is_public=True)
+    
+    if region_id:
+        reports = reports.filter(region_id=region_id)
+    
+    total_count = reports.count()
+    reports = reports.select_related('region', 'user').order_by('-created_at')[offset:offset+limit]
+    
+    # Format data
+    reports_list = []
+    for report in reports:
+        reports_list.append({
+            'id': report.id,
+            'title': report.title,
+            'description': report.description,
+            'report_type': report.report_type,
+            'status': report.status,
+            'region_name': report.region.name if report.region else 'Unknown',
+            'region_id': report.region.id if report.region else None,
+            'latitude': report.latitude,
+            'longitude': report.longitude,
+            'created_at': report.created_at.isoformat(),
+            'updated_at': report.updated_at.isoformat(),
+            'user': report.user.username if report.user else 'Anonymous',
+            'photo_url': report.photo.url if report.photo else None,
+        })
+    
+    return JsonResponse({
+        'count': total_count,
+        'results': reports_list
+    })
+
+# Add this function to climate/views.py
+@csrf_exempt
+def weather_api_redirect(request):
+    """
+    Redirect weather API calls to the REST API endpoint.
+    """
+    from django.shortcuts import redirect
+    from urllib.parse import urlencode
+    
+    # Get query parameters
+    params = request.GET.copy()
+    
+    # Build redirect URL to REST API
+    base_url = '/api/v1/weather/'
+    if params:
+        base_url += '?' + urlencode(params)
+    
+    return redirect(base_url)
+
+
+def test_api(request):
+    """Simple test endpoint to verify API is working."""
+    return JsonResponse({
+        'status': 'ok',
+        'message': 'API is working',
+        'timestamp': timezone.now().isoformat(),
+        'endpoints': {
+            'weather': '/api/weather/?lat=-1.2921&lon=36.8219',
+            'climate_data': '/api/climate-data/latest/',
+            'test': '/api/test/'
+        }
+    })

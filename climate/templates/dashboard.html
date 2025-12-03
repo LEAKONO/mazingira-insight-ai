@@ -93,65 +93,11 @@
     </div>
 </div>
 
-<!-- Charts Row -->
+<!-- Main Charts Row - Side by Side -->
 <div class="row mb-4">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-thermometer-half me-2"></i>
-                {% if has_real_data %}
-                    Temperature Trends (Real Data)
-                {% else %}
-                    Sample: Temperature Pattern
-                {% endif %}
-            </div>
-            <div class="card-body">
-                <div class="chart-container" style="height: 400px;">
-                    <canvas id="temperatureChart"></canvas>
-                </div>
-                {% if not has_real_data %}
-                <div class="alert alert-info mt-3">
-                    <small>
-                        <i class="fas fa-info-circle me-1"></i>
-                        This shows typical monthly temperature patterns for East Africa.
-                        Run <code>python manage.py fetch_weather</code> to collect real data.
-                    </small>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-wind me-2"></i>
-                {% if has_real_data %}
-                    Current Wind Speed by Region
-                {% else %}
-                    Sample: Regional Wind Comparison
-                {% endif %}
-            </div>
-            <div class="card-body">
-                <div class="chart-container" style="height: 400px;">
-                    <canvas id="windChart"></canvas>
-                </div>
-                {% if not has_real_data %}
-                <div class="alert alert-info mt-3">
-                    <small>
-                        <i class="fas fa-info-circle me-1"></i>
-                        This shows typical wind speed variations across East African cities.
-                    </small>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- MONTHLY TRENDS CHART - NEW ENHANCED SECTION -->
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card">
+    <!-- Monthly Temperature Trends (Main Chart) -->
+    <div class="col-md-9">
+        <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div>
                     <i class="fas fa-calendar-alt me-2"></i>
@@ -167,19 +113,80 @@
                 </div>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-9">
-                        <div class="chart-container" style="height: 500px;">
-                            <canvas id="monthlyTrendsChart"></canvas>
-                        </div>
-                        <div class="mt-3 text-muted small">
-                            <i class="fas fa-info-circle me-1"></i>
-                            <strong>Chart shows:</strong> Historical monthly averages (2023-2025) + ML predictions for 2026.
-                            Prediction confidence intervals show ±0.5-1.5°C range.
-                        </div>
+                <div class="chart-container" style="height: 450px;">
+                    <canvas id="monthlyTrendsChart"></canvas>
+                </div>
+                <div class="mt-3 text-muted small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    <strong>Chart shows:</strong> Historical monthly averages (2023-2025) + ML predictions for 2026.
+                    Prediction confidence intervals show ±0.5-1.5°C range.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Wind Chart (Small on the right) -->
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fas fa-wind me-2"></i>
+                {% if has_real_data %}
+                    Current Wind Speed
+                {% else %}
+                    Sample Wind
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="windChart"></canvas>
+                </div>
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Avg Speed:</span>
+                        <span class="fw-bold">
+                            {% if wind_stats.avg_wind %}
+                                {{ wind_stats.avg_wind|floatformat:1 }}
+                            {% else %}
+                                0
+                            {% endif %} m/s
+                        </span>
                     </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Max Speed:</span>
+                        <span class="fw-bold">
+                            {% if wind_stats.max_wind %}
+                                {{ wind_stats.max_wind|floatformat:1 }}
+                            {% else %}
+                                0
+                            {% endif %} m/s
+                        </span>
+                    </div>
+                    {% if wind_stats.max_wind_region %}
+                    <div class="alert alert-warning small mt-3 p-2">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <strong>Highest:</strong> {{ wind_stats.max_wind_region }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% if not has_real_data %}
+                <div class="alert alert-info mt-2 p-1 small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Sample wind data shown
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trend Analysis Row -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
                     <div class="col-md-3">
-                        <div class="trend-analysis p-3 border rounded">
+                        <div class="trend-analysis p-3">
                             <h6><i class="fas fa-chart-line me-2"></i>Trend Analysis</h6>
                             <div class="mt-3">
                                 <div class="d-flex justify-content-between mb-2">
@@ -209,46 +216,52 @@
                                     <span class="badge bg-success">81%</span>
                                 </div>
                             </div>
-                            
-                            <div class="alert alert-info mt-4 p-2 small">
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <div class="trend-analysis p-3">
+                            <h6><i class="fas fa-legend me-2"></i>Chart Legend</h6>
+                            <div class="small mt-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="legend-color bg-primary" style="width: 12px; height: 12px; margin-right: 8px;"></div>
+                                    <span>Historical Data</span>
+                                </div>
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="legend-color bg-warning" style="width: 12px; height: 12px; margin-right: 8px;"></div>
+                                    <span>ML Predictions</span>
+                                </div>
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="legend-color bg-warning opacity-25" style="width: 12px; height: 12px; margin-right: 8px;"></div>
+                                    <span>Confidence Interval</span>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <div class="legend-color bg-danger" style="width: 3px; height: 12px; margin-right: 8px;"></div>
+                                    <span>Current Month</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="trend-analysis p-3">
+                            <div class="alert alert-info">
                                 <i class="fas fa-lightbulb me-1"></i>
                                 <strong>Insight:</strong> 
                                 {% if monthly_trends.trend == 'increasing' %}
-                                Temperatures show a warming trend for 2026.
+                                Temperatures show a warming trend for 2026 with an increase of {{ monthly_trends.trend_magnitude|floatformat:1 }}°C.
                                 {% elif monthly_trends.trend == 'decreasing' %}
-                                Temperatures show a cooling trend for 2026.
+                                Temperatures show a cooling trend for 2026 with a decrease of {{ monthly_trends.trend_magnitude|floatformat:1 }}°C.
                                 {% else %}
-                                Temperatures remain stable for 2026.
+                                Temperatures remain stable for 2026 with minimal variation.
                                 {% endif %}
                             </div>
                             
-                            <div class="mt-3">
-                                <h6 class="small"><i class="fas fa-legend me-1"></i>Chart Legend</h6>
-                                <div class="small">
-                                    <div class="d-flex align-items-center mb-1">
-                                        <div class="legend-color bg-primary" style="width: 12px; height: 12px; margin-right: 8px;"></div>
-                                        <span>Historical Data</span>
-                                    </div>
-                                    <div class="d-flex align-items-center mb-1">
-                                        <div class="legend-color bg-warning" style="width: 12px; height: 12px; margin-right: 8px;"></div>
-                                        <span>ML Predictions</span>
-                                    </div>
-                                    <div class="d-flex align-items-center mb-1">
-                                        <div class="legend-color bg-warning opacity-25" style="width: 12px; height: 12px; margin-right: 8px;"></div>
-                                        <span>Confidence Interval</span>
-                                    </div>
-                                    <div class="d-flex align-items-center">
-                                        <div class="legend-color bg-danger" style="width: 3px; height: 12px; margin-right: 8px;"></div>
-                                        <span>Current Month</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
                             {% if not monthly_trends.has_predictions %}
-                            <div class="alert alert-warning mt-3 p-2 small">
+                            <div class="alert alert-warning mt-3">
                                 <i class="fas fa-exclamation-triangle me-1"></i>
                                 <strong>No ML predictions available yet.</strong><br>
-                                <button class="btn btn-sm btn-outline-primary mt-2 w-100" onclick="generateMonthlyPredictions()">
+                                <button class="btn btn-sm btn-outline-primary mt-2" onclick="generateMonthlyPredictions()">
                                     <i class="fas fa-brain me-1"></i> Generate Predictions
                                 </button>
                             </div>
@@ -618,21 +631,13 @@
         destroyExistingCharts();
         
         // Create new charts with real data
-        createTemperatureChart();
-        createWindChart();
-        createMonthlyTrendsChart();  // NEW: Monthly trends chart
+        createWindChart();  // Smaller wind chart
+        createMonthlyTrendsChart();  // Main temperature trends chart
     }
     
     function destroyExistingCharts() {
-        const tempCtx = document.getElementById('temperatureChart');
         const windCtx = document.getElementById('windChart');
         const monthlyCtx = document.getElementById('monthlyTrendsChart');
-        
-        if (tempCtx && tempCtx.chart) {
-            console.log('Destroying existing temperature chart');
-            tempCtx.chart.destroy();
-            tempCtx.chart = null;
-        }
         
         if (windCtx && windCtx.chart) {
             console.log('Destroying existing wind chart');
@@ -647,128 +652,6 @@
         }
     }
     
-    function createTemperatureChart() {
-        const tempCtx = document.getElementById('temperatureChart');
-        if (!tempCtx) {
-            console.error('Temperature chart canvas not found');
-            return;
-        }
-        
-        try {
-            console.log('Creating temperature chart with REAL data');
-            
-            // Prepare datasets
-            const datasets = [{
-                label: hasRealData ? 'Temperature (°C)' : 'Sample Temperature (°C)',
-                data: temperatureData,
-                borderColor: 'rgb(255, 99, 132)',
-                backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.3,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }];
-            
-            // Add predictions if available
-            const hasPredictions = temperaturePredictions && temperaturePredictions.some(p => p !== null);
-            if (hasPredictions) {
-                datasets.push({
-                    label: 'Predicted Temperature (°C)',
-                    data: temperaturePredictions,
-                    borderColor: 'rgb(54, 162, 235)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    fill: false,
-                    tension: 0.3,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                });
-            }
-            
-            const temperatureChart = new Chart(tempCtx, {
-                type: 'line',
-                data: {
-                    labels: temperatureLabels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: hasRealData ? 
-                                'Temperature Trends (Real Data)' : 
-                                'Sample: Temperature Pattern',
-                            font: {
-                                size: 16,
-                                weight: 'bold'
-                            }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                label: function(context) {
-                                    const value = context.parsed.y;
-                                    if (value === 0 && !hasRealData) {
-                                        return `${context.dataset.label}: Sample data`;
-                                    }
-                                    return `${context.dataset.label}: ${value}°C`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            min: Math.min(...temperatureData.filter(v => v > 0)) - 5 || 15,
-                            max: Math.max(...temperatureData) + 5 || 30,
-                            title: {
-                                display: true,
-                                text: 'Temperature (°C)',
-                                font: {
-                                    weight: 'bold'
-                                }
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return value + '°C';
-                                }
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Time',
-                                font: {
-                                    weight: 'bold'
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            
-            console.log('Temperature chart created successfully');
-            window.temperatureChart = temperatureChart;
-            
-        } catch (e) {
-            console.error('Error creating temperature chart:', e);
-            createFallbackTemperatureChart();
-        }
-    }
-    
     function createWindChart() {
         const windCtx = document.getElementById('windChart');
         if (!windCtx) {
@@ -777,7 +660,7 @@
         }
         
         try {
-            console.log('Creating wind chart with REAL data');
+            console.log('Creating wind chart with REAL data (small version)');
             
             // Color bars based on wind speed
             const colors = windData.map(speed => {
@@ -796,7 +679,7 @@
                         backgroundColor: colors,
                         borderColor: colors.map(c => c.replace('0.7', '1')),
                         borderWidth: 1,
-                        borderRadius: 4
+                        borderRadius: 3
                     }]
                 },
                 options: {
@@ -805,16 +688,6 @@
                     plugins: {
                         legend: {
                             display: false
-                        },
-                        title: {
-                            display: true,
-                            text: hasRealData ? 
-                                'Current Wind Speed by Region' : 
-                                'Sample: Regional Wind Comparison',
-                            font: {
-                                size: 16,
-                                weight: 'bold'
-                            }
                         },
                         tooltip: {
                             callbacks: {
@@ -835,34 +708,40 @@
                             max: Math.max(...windData) + 2 || 6,
                             title: {
                                 display: true,
-                                text: 'Wind Speed (m/s)',
+                                text: 'm/s',
                                 font: {
+                                    size: 11,
                                     weight: 'bold'
                                 }
                             },
                             ticks: {
+                                font: {
+                                    size: 10
+                                },
                                 callback: function(value) {
-                                    return value + ' m/s';
+                                    return value + '';
                                 }
+                            },
+                            grid: {
+                                display: true
                             }
                         },
                         x: {
-                            title: {
-                                display: true,
-                                text: 'Region',
-                                font: {
-                                    weight: 'bold'
-                                }
-                            },
                             ticks: {
+                                font: {
+                                    size: 9
+                                },
                                 maxRotation: 45
+                            },
+                            grid: {
+                                display: false
                             }
                         }
                     }
                 }
             });
             
-            console.log('Wind chart created successfully');
+            console.log('Wind chart created successfully (small)');
             window.windChart = windChart;
             
         } catch (e) {
@@ -871,7 +750,7 @@
         }
     }
     
-    // Monthly Trends Chart
+    // Monthly Trends Chart (Main)
     function createMonthlyTrendsChart() {
         const monthlyCtx = document.getElementById('monthlyTrendsChart');
         if (!monthlyCtx) {
@@ -880,9 +759,9 @@
         }
         
         try {
-            console.log('Creating monthly trends chart...');
+            console.log('Creating monthly trends chart (main)...');
             
-            // Get data from template variables (you'll need to pass these)
+            // Get data from template variables
             const monthlyLabels = {{ monthly_trends.labels|safe|default:"[]" }};
             const actualTemps = {{ monthly_trends.actual_temperatures|safe|default:"[]" }};
             const predictedTemps = {{ monthly_trends.predicted_temperatures|safe|default:"[]" }};
@@ -978,14 +857,6 @@
                                 }
                             }
                         },
-                        title: {
-                            display: true,
-                            text: 'Monthly Temperature Trends with 12-Month ML Forecast',
-                            font: {
-                                size: 16,
-                                weight: 'bold'
-                            }
-                        },
                         tooltip: {
                             mode: 'index',
                             intersect: false,
@@ -1009,7 +880,10 @@
                                         content: 'Current Month',
                                         enabled: true,
                                         position: 'start',
-                                        backgroundColor: 'rgba(255, 99, 132, 0.8)'
+                                        backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                                        font: {
+                                            size: 11
+                                        }
                                     }
                                 }
                             }
@@ -1022,10 +896,14 @@
                                 display: true,
                                 text: 'Temperature (°C)',
                                 font: {
+                                    size: 14,
                                     weight: 'bold'
                                 }
                             },
                             ticks: {
+                                font: {
+                                    size: 12
+                                },
                                 callback: function(value) {
                                     return value + '°C';
                                 }
@@ -1036,10 +914,14 @@
                                 display: true,
                                 text: 'Month',
                                 font: {
+                                    size: 14,
                                     weight: 'bold'
                                 }
                             },
                             ticks: {
+                                font: {
+                                    size: 12
+                                },
                                 maxRotation: 45,
                                 callback: function(value, index, values) {
                                     // Show every 2nd label to avoid crowding
@@ -1122,6 +1004,52 @@
                 }
             }
         });
+    }
+    
+    function createFallbackWindChart() {
+        const windCtx = document.getElementById('windChart');
+        if (windCtx) {
+            const sampleLabels = ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret'];
+            const sampleData = [3.2, 4.5, 2.8, 3.1, 2.9];
+            
+            new Chart(windCtx, {
+                type: 'bar',
+                data: {
+                    labels: sampleLabels,
+                    datasets: [{
+                        label: 'Sample Wind Speed (m/s)',
+                        data: sampleData,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 9
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
     
     // Generate monthly predictions
@@ -1238,50 +1166,6 @@
         });
     }
     
-    function createFallbackTemperatureChart() {
-        const tempCtx = document.getElementById('temperatureChart');
-        if (tempCtx) {
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const sampleData = [23.5, 24.1, 23.8, 22.9, 22.2, 21.5, 
-                               20.8, 21.1, 22.0, 22.8, 23.2, 23.4];
-            
-            new Chart(tempCtx, {
-                type: 'line',
-                data: {
-                    labels: months,
-                    datasets: [{
-                        label: 'Sample Temperature (°C)',
-                        data: sampleData,
-                        borderColor: 'rgb(255, 99, 132)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                        borderWidth: 2
-                    }]
-                }
-            });
-        }
-    }
-    
-    function createFallbackWindChart() {
-        const windCtx = document.getElementById('windChart');
-        if (windCtx) {
-            const sampleLabels = ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret'];
-            const sampleData = [3.2, 4.5, 2.8, 3.1, 2.9];
-            
-            new Chart(windCtx, {
-                type: 'bar',
-                data: {
-                    labels: sampleLabels,
-                    datasets: [{
-                        label: 'Sample Wind Speed (m/s)',
-                        data: sampleData,
-                        backgroundColor: 'rgba(54, 162, 235, 0.6)'
-                    }]
-                }
-            });
-        }
-    }
-    
     function setupDashboardEvents() {
         // Refresh button
         const refreshBtn = document.getElementById('refreshDataBtn');
@@ -1310,11 +1194,6 @@
         btn.disabled = true;
         
         // Show loading state on charts
-        if (window.temperatureChart) {
-            window.temperatureChart.data.datasets[0].data = temperatureData.map(() => null);
-            window.temperatureChart.update('none');
-        }
-        
         if (window.windChart) {
             window.windChart.data.datasets[0].data = windData.map(() => null);
             window.windChart.update('none');
