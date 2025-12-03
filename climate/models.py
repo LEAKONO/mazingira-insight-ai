@@ -5,6 +5,7 @@ Database models for the climate monitoring application.
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+import calendar
 
 
 class Region(models.Model):
@@ -290,3 +291,159 @@ class Prediction(models.Model):
     
     def __str__(self):
         return f"{self.region.name} - {self.prediction_date.strftime('%Y-%m-%d')}"
+
+
+class MonthlyClimate(models.Model):
+    """
+    Monthly aggregated climate data for better trend analysis.
+    """
+    region = models.ForeignKey(Region, on_delete=models.CASCADE, related_name='monthly_data')
+    year = models.IntegerField()
+    month = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)])  # 1-12
+    
+    # Aggregated values
+    avg_temperature = models.FloatField(help_text="Average temperature in Celsius")
+    max_temperature = models.FloatField(help_text="Maximum temperature in Celsius")
+    min_temperature = models.FloatField(help_text="Minimum temperature in Celsius")
+    total_rainfall = models.FloatField(help_text="Total rainfall in mm")
+    avg_humidity = models.FloatField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Average relative humidity percentage"
+    )
+    avg_wind_speed = models.FloatField(help_text="Average wind speed in m/s")
+    
+    # Prediction for next period
+    predicted_temperature = models.FloatField(
+        null=True, blank=True,
+        help_text="Predicted average temperature for this month"
+    )
+    predicted_rainfall = models.FloatField(
+        null=True, blank=True,
+        help_text="Predicted total rainfall for this month"
+    )
+    prediction_confidence = models.FloatField(
+        null=True, blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Prediction confidence percentage (0-100%)"
+    )
+    
+    # Additional calculated fields
+    temperature_anomaly = models.FloatField(
+        null=True, blank=True,
+        help_text="Temperature anomaly from historical average"
+    )
+    rainfall_anomaly = models.FloatField(
+        null=True, blank=True,
+        help_text="Rainfall anomaly from historical average"
+    )
+    
+    # Source and metadata
+    data_source = models.CharField(
+        max_length=50,
+        choices=[
+            ('aggregated', 'Aggregated from ClimateData'),
+            ('api', 'Monthly API Data'),
+            ('predicted', 'ML Prediction'),
+            ('manual', 'Manual Entry'),
+        ],
+        default='aggregated'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-year', '-month']
+        unique_together = ['region', 'year', 'month']
+        verbose_name_plural = "Monthly Climate Data"
+        indexes = [
+            models.Index(fields=['region', 'year', 'month']),
+            models.Index(fields=['year', 'month']),
+            models.Index(fields=['avg_temperature']),
+        ]
+    
+    def __str__(self):
+        return f"{self.region.name} - {self.year}/{self.month:02d}: {self.avg_temperature:.1f}°C"
+    
+    def get_month_name(self):
+        """Return month name with error handling."""
+        try:
+            return calendar.month_name[self.month]
+        except (IndexError, AttributeError):
+            # Fallback if month is invalid
+            month_names = ['January', 'February', 'March', 'April', 'May', 'June',
+                          'July', 'August', 'September', 'October', 'November', 'December']
+            if 1 <= self.month <= 12:
+                return month_names[self.month - 1]
+            return 'Unknown'
+    
+    def get_short_month_name(self):
+        """Return abbreviated month name."""
+        try:
+            return calendar.month_abbr[self.month]
+        except (IndexError, AttributeError):
+            month_abbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            if 1 <= self.month <= 12:
+                return month_abbr[self.month - 1]
+            return 'Unknown'
+    
+    def get_season(self):
+        """Return season based on month and hemisphere (assuming Southern Hemisphere for East Africa)."""
+        if self.month in [12, 1, 2]:
+            return "Summer"
+        elif self.month in [3, 4, 5]:
+            return "Autumn"
+        elif self.month in [6, 7, 8]:
+            return "Winter"
+        else:
+            return "Spring"
+    
+    def get_label(self):
+        """Return formatted label for charts: 'Mar 2024'."""
+        return f"{self.get_short_month_name()} {self.year}"
+    
+    def is_prediction(self):
+        """Check if this record contains prediction data."""
+        return self.predicted_temperature is not None and self.data_source == 'predicted'
+    
+    def calculate_anomalies(self, historical_avg_temp=None, historical_avg_rain=None):
+        """
+        Calculate temperature and rainfall anomalies.
+        Can be called with historical averages or calculated internally.
+        """
+        if historical_avg_temp is not None:
+            self.temperature_anomaly = self.avg_temperature - historical_avg_temp
+        
+        if historical_avg_rain is not None:
+            self.rainfall_anomaly = self.total_rainfall - historical_avg_rain
+        
+        self.save()
+    
+    def get_prediction_interval(self):
+        """Calculate prediction interval based on confidence level."""
+        if self.predicted_temperature and self.prediction_confidence:
+            # Simple calculation: ± uncertainty based on confidence
+            uncertainty = (100 - self.prediction_confidence) / 50  # 0-2°C range
+            lower = self.predicted_temperature - uncertainty
+            upper = self.predicted_temperature + uncertainty
+            return lower, upper
+        return None, None
+    
+    def to_dict(self):
+        """Convert to dictionary for chart data."""
+        return {
+            'year': self.year,
+            'month': self.month,
+            'month_name': self.get_month_name(),
+            'avg_temperature': self.avg_temperature,
+            'predicted_temperature': self.predicted_temperature,
+            'prediction_confidence': self.prediction_confidence,
+            'total_rainfall': self.total_rainfall,
+            'predicted_rainfall': self.predicted_rainfall,
+            'avg_humidity': self.avg_humidity,
+            'avg_wind_speed': self.avg_wind_speed,
+            'season': self.get_season(),
+            'is_prediction': self.is_prediction(),
+            'label': self.get_label()
+        }

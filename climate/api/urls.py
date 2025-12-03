@@ -5,6 +5,8 @@ Updated with basename parameters for all ViewSets.
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from climate.api.views import generate_monthly_predictions
+
 from . import views
 
 router = DefaultRouter()
@@ -20,4 +22,6 @@ urlpatterns = [
     path('predict-temperature/', views.predict_temperature, name='predict_temperature'),
     path('regions/geojson/', views.regions_geojson, name='regions_geojson'),
     path('statistics/', views.climate_statistics, name='climate_statistics'),
+    path('generate-monthly-predictions/', generate_monthly_predictions, name='generate-monthly-predictions'),
+    
 ]

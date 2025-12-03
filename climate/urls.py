@@ -34,4 +34,5 @@ urlpatterns = [
     # Data export
     path('export/csv/', views.export_climate_data_csv, name='export_climate_data_csv'),
     path('export/pdf/<int:region_id>/', views.export_region_pdf, name='export_region_pdf'),
+    path('api/save-carbon-footprint/', views.save_carbon_footprint_api, name='save_carbon_footprint_api'),
 ]

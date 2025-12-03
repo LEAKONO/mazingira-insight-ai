@@ -85,13 +85,21 @@ class Command(BaseCommand):
                 except Exception as e:
                     logger.warning(f'Failed to fetch air quality for {region.name}: {e}')
                 
+                # Get rainfall from API response
+                rainfall_data = weather_data.get('rain', 0)
+                # If it's a dictionary with '1h' key (hourly rainfall), extract that value
+                if isinstance(rainfall_data, dict):
+                    rainfall = rainfall_data.get('1h', 0)
+                else:
+                    rainfall = rainfall_data
+                
                 # Create ClimateData record
                 climate_data = ClimateData(
                     region=region,
                     timestamp=weather_data.get('timestamp', timezone.now()),
                     temperature=weather_data['main']['temperature'],
                     humidity=weather_data['main']['humidity'],
-                    rainfall=0,  # OpenWeather doesn't provide current rainfall
+                    rainfall=rainfall,  # Now using actual rainfall data
                     air_quality_index=(
                         self._calculate_aqi_from_data(air_quality)
                         if air_quality and air_quality.get('aqi')
@@ -111,7 +119,8 @@ class Command(BaseCommand):
                     self.style.SUCCESS(
                         f'Successfully fetched data for {region.name}: '
                         f'{climate_data.temperature}°C, '
-                        f'{climate_data.humidity}% humidity'
+                        f'{climate_data.humidity}% humidity, '
+                        f'{climate_data.rainfall}mm rain'
                     )
                 )
                 success_count += 1

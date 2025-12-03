@@ -1,271 +1,149 @@
 """
-Django management command to seed the database with sample data.
-FIXED VERSION - matches current model structure
+Seed monthly climate data with synthetic historical data for ML training.
 """
 
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import datetime, timedelta
 import random
-import json
-import math  # Using math instead of numpy
+import math
 
-from climate.models import Region, ClimateData, Prediction
+from climate.models import Region, MonthlyClimate
 
 
 class Command(BaseCommand):
-    help = 'Seed the database with sample climate data'
+    help = 'Seed monthly climate data with synthetic historical data'
+    
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--years',
+            type=int,
+            default=3,
+            help='Number of years of historical data to generate (default: 3)'
+        )
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            help='Overwrite existing monthly data'
+        )
     
     def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS('Starting database seeding...'))
+        self.stdout.write(self.style.SUCCESS('🌍 Seeding monthly climate data...'))
         
-        # Create admin user if not exists
-        self.create_admin_user()
+        years = options['years']
+        force = options['force']
+        regions = Region.objects.all()
         
-        # Create sample regions
-        regions = self.create_sample_regions()
-        
-        # Create sample climate data
-        self.create_sample_climate_data(regions)
-        
-        # Create sample predictions
-        self.create_sample_predictions(regions)
-        
-        self.stdout.write(self.style.SUCCESS('Database seeding completed!'))
-    
-    def create_admin_user(self):
-        """Create an admin user if not exists."""
-        if not User.objects.filter(username='admin').exists():
-            User.objects.create_superuser(
-                username='admin',
-                email='admin@mazingirainsight.ai',
-                password='admin123'
-            )
-            self.stdout.write(self.style.SUCCESS('Created admin user: admin/admin123'))
-        else:
-            self.stdout.write(self.style.WARNING('Admin user already exists'))
-    
-    def create_sample_regions(self):
-        """Create sample regions for East Africa."""
-        regions_data = [
-            {
-                'name': 'Nairobi',
-                'country': 'Kenya',
-                'latitude': -1.2921,
-                'longitude': 36.8219,
-                'population': 5000000,
-                'area_sq_km': 696,
-                'climate_zone': 'Tropical Highland',
-                'elevation': 1795,
-            },
-            {
-                'name': 'Mombasa',
-                'country': 'Kenya',
-                'latitude': -4.0435,
-                'longitude': 39.6682,
-                'population': 1200000,
-                'area_sq_km': 295,
-                'climate_zone': 'Tropical Coastal',
-                'elevation': 50,
-            },
-            {
-                'name': 'Kisumu',
-                'country': 'Kenya',
-                'latitude': -0.1022,
-                'longitude': 34.7617,
-                'population': 500000,
-                'area_sq_km': 417,
-                'climate_zone': 'Tropical Lakeside',
-                'elevation': 1131,
-            },
-            {
-                'name': 'Arusha',
-                'country': 'Tanzania',
-                'latitude': -3.3869,
-                'longitude': 36.6830,
-                'population': 800000,
-                'area_sq_km': 1590,
-                'climate_zone': 'Tropical Highland',
-                'elevation': 1387,
-            },
-            {
-                'name': 'Kampala',
-                'country': 'Uganda',
-                'latitude': 0.3476,
-                'longitude': 32.5825,
-                'population': 3500000,
-                'area_sq_km': 189,
-                'climate_zone': 'Tropical',
-                'elevation': 1190,
-            },
-        ]
-        
-        regions = []
-        for data in regions_data:
-            region, created = Region.objects.update_or_create(
-                name=data['name'],
-                country=data['country'],
-                defaults={
-                    'latitude': data['latitude'],
-                    'longitude': data['longitude'],
-                    'population': data['population'],
-                    'area_sq_km': data['area_sq_km'],
-                    'climate_zone': data['climate_zone'],
-                    'elevation': data['elevation'],
-                    'location_data': {  # Use location_data instead of geojson
-                        'type': 'Point',
-                        'coordinates': [data['longitude'], data['latitude']]
-                    }
-                }
-            )
-            regions.append(region)
-            
-            if created:
-                self.stdout.write(self.style.SUCCESS(f'Created region: {region.name}'))
-            else:
-                self.stdout.write(self.style.WARNING(f'Updated region: {region.name}'))
-        
-        return regions
-    
-    def create_sample_climate_data(self, regions):
-        """Create sample climate data for regions."""
-        self.stdout.write('Creating sample climate data...')
-        
-        # Delete existing data to avoid duplicates
-        ClimateData.objects.all().delete()
-        
-        # Generate data for the last 30 days
-        end_date = timezone.now()
-        start_date = end_date - timedelta(days=30)
-        
-        climate_data_objects = []
+        total_created = 0
+        total_updated = 0
         
         for region in regions:
-            # Base climate parameters for the region
-            if 'Nairobi' in region.name:
-                base_temp = 22.0
-                base_humidity = 60.0
-                base_rainfall = 2.0
-            elif 'Mombasa' in region.name:
-                base_temp = 28.0
-                base_humidity = 75.0
-                base_rainfall = 5.0
-            elif 'Kisumu' in region.name:
-                base_temp = 25.0
-                base_humidity = 70.0
-                base_rainfall = 4.0
-            elif 'Arusha' in region.name:
-                base_temp = 20.0
-                base_humidity = 65.0
-                base_rainfall = 3.0
-            else:
-                base_temp = 24.0
-                base_humidity = 65.0
-                base_rainfall = 3.0
+            self.stdout.write(f'\n📊 Generating data for {region.name}...')
             
-            # Generate DAILY data (instead of hourly) to reduce complexity
-            current_date = start_date
-            while current_date <= end_date:
-                # Add some randomness
-                hour = current_date.hour
-                day_of_year = current_date.timetuple().tm_yday
-                
-                # Daily temperature variation using math.sin
-                daily_variation = 8 * (math.sin(2 * math.pi * hour / 24) + 1) / 2
-                
-                # Seasonal variation (simplified)
-                seasonal_variation = 5 * math.sin(2 * math.pi * day_of_year / 365)
-                
-                # Calculate final values
-                temperature = base_temp + daily_variation + seasonal_variation + random.uniform(-2, 2)
-                humidity = base_humidity + random.uniform(-10, 10)
-                
-                # Rainfall (higher probability during certain hours)
-                if random.random() < 0.1:  # 10% chance of rain
-                    rainfall = random.uniform(0.1, 5.0)
-                else:
-                    rainfall = 0.0
-                
-                # Air quality (worse during certain hours)
-                if hour in [8, 9, 17, 18]:  # Rush hours
-                    aqi = random.uniform(50, 100)
-                else:
-                    aqi = random.uniform(20, 50)
-                
-                # Create ClimateData object
-                climate_data = ClimateData(
-                    region=region,
-                    timestamp=current_date,
-                    temperature=temperature,
-                    humidity=humidity,
-                    rainfall=rainfall,
-                    air_quality_index=aqi,
-                    wind_speed=random.uniform(1, 10),
-                    wind_direction=random.uniform(0, 360),
-                    pressure=1013 + random.uniform(-10, 10),
-                    source='synthetic'
-                )
-                
-                climate_data_objects.append(climate_data)
-                
-                # Move to next DAY (not hour) to reduce data volume
-                current_date += timedelta(days=1)
-        
-        # Bulk create in smaller batches
-        batch_size = 100
-        for i in range(0, len(climate_data_objects), batch_size):
-            batch = climate_data_objects[i:i + batch_size]
-            ClimateData.objects.bulk_create(batch)
-        
-        self.stdout.write(self.style.SUCCESS(f'Created {len(climate_data_objects)} climate data records'))
-    
-    def create_sample_predictions(self, regions):
-        """Create sample predictions."""
-        self.stdout.write('Creating sample predictions...')
-        
-        # Delete existing predictions
-        Prediction.objects.all().delete()
-        
-        prediction_objects = []
-        
-        for region in regions:
-            # Base values
-            if 'Nairobi' in region.name:
-                base_temp = 22.0
-                base_rainfall = 2.0
-            elif 'Mombasa' in region.name:
-                base_temp = 28.0
-                base_rainfall = 5.0
-            elif 'Kisumu' in region.name:
-                base_temp = 25.0
-                base_rainfall = 4.0
-            else:
-                base_temp = 24.0
-                base_rainfall = 3.0
+            # Base temperature varies by region
+            region_base = {
+                'Nairobi': 22.0,
+                'Mombasa': 27.0,
+                'Kisumu': 25.0,
+                'Arusha': 20.0,
+                'Kampala': 23.0,
+            }.get(region.name, 22.0)
             
-            # Create predictions for next 7 days
-            for day in range(1, 8):
-                prediction_date = timezone.now() + timedelta(days=day)
+            # Generate data for past N years
+            current_year = timezone.now().year
+            current_month = timezone.now().month
+            
+            # We'll generate data for years: current_year-2, current_year-1, current_year
+            for year_offset in range(years):
+                target_year = current_year - year_offset
                 
-                # Add some variation
-                temp_variation = random.uniform(-3, 3)
-                rainfall_variation = random.uniform(-1, 1)
-                
-                prediction = Prediction(
-                    region=region,
-                    prediction_date=prediction_date,
-                    predicted_temperature=base_temp + temp_variation,
-                    predicted_rainfall=max(0, base_rainfall + rainfall_variation),
-                    temperature_lower=base_temp + temp_variation - 1.5,
-                    temperature_upper=base_temp + temp_variation + 1.5,
-                    rainfall_lower=max(0, base_rainfall + rainfall_variation - 0.5),
-                    rainfall_upper=max(0, base_rainfall + rainfall_variation + 0.5),
-                    model_version='v1.0'
-                )
-                
-                prediction_objects.append(prediction)
+                # Generate all 12 months for this year
+                for month in range(1, 13):
+                    # Skip future months for current year
+                    if year_offset == 0 and month > current_month:
+                        continue
+                    
+                    # Check if data already exists
+                    existing = MonthlyClimate.objects.filter(
+                        region=region,
+                        year=target_year,
+                        month=month
+                    ).first()
+                    
+                    if existing and not force:
+                        self.stdout.write(
+                            self.style.WARNING(f'  Skipping {target_year}-{month:02d}: exists')
+                        )
+                        continue
+                    
+                    # Seasonal variation
+                    seasonal_variation = 3 * math.sin(2 * math.pi * month / 12)
+                    
+                    # Random variation
+                    random_variation = random.uniform(-1.5, 1.5)
+                    
+                    # Yearly trend (slight warming trend)
+                    yearly_trend = year_offset * -0.15  # Slightly cooler in past years
+                    
+                    # Calculate temperature
+                    temperature = region_base + seasonal_variation + random_variation + yearly_trend
+                    
+                    # Rainfall pattern for East Africa
+                    if month in [3, 4, 5]:  # Long rains (Mar-May)
+                        rainfall = random.uniform(80, 180)
+                        humidity = random.uniform(75, 90)
+                    elif month in [10, 11]:  # Short rains (Oct-Nov)
+                        rainfall = random.uniform(40, 120)
+                        humidity = random.uniform(70, 85)
+                    else:
+                        rainfall = random.uniform(0, 60)
+                        humidity = random.uniform(60, 75)
+                    
+                    # Wind patterns
+                    if month in [6, 7, 8]:  # Drier season
+                        wind_speed = random.uniform(3, 8)
+                    else:
+                        wind_speed = random.uniform(2, 6)
+                    
+                    # Create or update
+                    if existing and force:
+                        existing.avg_temperature = temperature
+                        existing.max_temperature = temperature + random.uniform(2, 5)
+                        existing.min_temperature = temperature - random.uniform(2, 5)
+                        existing.total_rainfall = rainfall
+                        existing.avg_humidity = humidity
+                        existing.avg_wind_speed = wind_speed
+                        existing.save()
+                        total_updated += 1
+                        
+                        self.stdout.write(
+                            self.style.WARNING(f'  Updated {target_year}-{month:02d}: {temperature:.1f}°C')
+                        )
+                    else:
+                        MonthlyClimate.objects.create(
+                            region=region,
+                            year=target_year,
+                            month=month,
+                            avg_temperature=temperature,
+                            max_temperature=temperature + random.uniform(2, 5),
+                            min_temperature=temperature - random.uniform(2, 5),
+                            total_rainfall=rainfall,
+                            avg_humidity=humidity,
+                            avg_wind_speed=wind_speed,
+                        )
+                        total_created += 1
+                        
+                        if total_created % 12 == 0:
+                            self.stdout.write(
+                                self.style.SUCCESS(f'  Created {target_year}-{month:02d}: {temperature:.1f}°C')
+                            )
         
-        # Bulk create predictions
-        Prediction.objects.bulk_create(prediction_objects)
-        self.stdout.write(self.style.SUCCESS(f'Created {len(prediction_objects)} prediction records'))
+        self.stdout.write(self.style.SUCCESS('\n' + '=' * 50))
+        self.stdout.write(self.style.SUCCESS('🌱 Seeding complete!'))
+        self.stdout.write(self.style.SUCCESS(f'📈 Created: {total_created} monthly records'))
+        self.stdout.write(self.style.SUCCESS(f'🔄 Updated: {total_updated} monthly records'))
+        
+        if total_created > 0:
+            self.stdout.write(self.style.SUCCESS(
+                '\n🚀 Now run: python manage.py predict_monthly --train'
+            ))

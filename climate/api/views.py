@@ -347,3 +347,32 @@ def climate_statistics(request):
         'recent_predictions': prediction_data,
         'last_updated': timezone.now()
     })
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def generate_monthly_predictions(request):
+    """Generate monthly climate predictions."""
+    try:
+        # Run monthly aggregation first
+        from django.core import management
+        management.call_command('generate_monthly_data', months=24)
+        
+        # Run monthly predictions
+        management.call_command('predict_monthly', train=True)
+        
+        # Count predictions generated
+        predictions_count = MonthlyClimate.objects.filter(
+            predicted_temperature__isnull=False
+        ).count()
+        
+        return Response({
+            'success': True,
+            'predictions_generated': predictions_count,
+            'message': f'Successfully generated {predictions_count} monthly predictions'
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': str(e),
+            'success': False
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

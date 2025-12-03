@@ -293,18 +293,21 @@
         </div>
         
         <!-- Similar Reports -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-flag me-2"></i>
-                    Similar Reports in {{ report.region.name }}
-                </h5>
-            </div>
-            <div class="card-body">
-                {% with similar_reports=report.region.environmentalreport_set.exclude(id=report.id).filter(is_public=True).order_by('-created_at')|slice:":5" %}
-                {% if similar_reports %}
-                <div class="list-group list-group-flush">
-                    {% for similar in similar_reports %}
+        <!-- Similar Reports -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-flag me-2"></i>
+            Similar Reports in {{ report.region.name }}
+        </h5>
+    </div>
+    <div class="card-body">
+        {% with similar_reports=report.region.environmentalreport_set.all %}
+        {% if similar_reports %}
+        <div class="list-group list-group-flush">
+            {% for similar in similar_reports %}
+                {% if similar.id != report.id and similar.is_public %}
+                    {% if forloop.counter <= 5 %}
                     <a href="{% url 'report_detail' similar.id %}" class="list-group-item list-group-item-action">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">{{ similar.title|truncatechars:30 }}</h6>
@@ -320,17 +323,19 @@
                             </span>
                         </small>
                     </a>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-center py-3">
-                    <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
-                    <p class="text-muted">No similar reports found</p>
-                </div>
+                    {% endif %}
                 {% endif %}
-                {% endwith %}
-            </div>
+            {% endfor %}
         </div>
+        {% else %}
+        <div class="text-center py-3">
+            <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
+            <p class="text-muted">No similar reports found</p>
+        </div>
+        {% endif %}
+        {% endwith %}
+    </div>
+</div>
         
         <!-- Contact Information -->
         <div class="card">
