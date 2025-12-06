@@ -22,7 +22,7 @@ A Django-based climate monitoring platform that provides real-time climate data,
 
 1. **Clone and setup environment**
 ```bash
-git clone https://github.com/yourusername/mazingira-insight-ai.git
+git clone https://github.com/LEAKONO/mazingira-insight-ai
 cd mazingira-insight-ai
 python -m venv venv
 
