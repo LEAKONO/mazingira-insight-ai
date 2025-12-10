@@ -5,7 +5,6 @@ const ClimateCharts = {
     initializeAllCharts: function() {
         console.log('Climate charts initializing...');
         
-        // DON'T initialize on dashboard - dashboard has its own charts
         if (window.location.pathname === '/' || 
             window.location.pathname === '/dashboard/' || 
             window.location.pathname === '/dashboard') {
@@ -15,10 +14,8 @@ const ClimateCharts = {
         
         console.log('Initializing charts for non-dashboard pages...');
         
-        // Temperature chart - ONLY for non-dashboard pages
         this.initializeTemperatureChart();
         
-        // Wind chart - ONLY for non-dashboard pages
         this.initializeWindChart();
         
         console.log('Climate charts initialized for non-dashboard pages');
@@ -31,7 +28,6 @@ const ClimateCharts = {
             return;
         }
         
-        // Check if this is dashboard (skip if it is)
         if (document.querySelector('.dashboard-indicator') || 
             document.title.includes('Dashboard')) {
             console.log('Skipping temperature chart - this is dashboard');
@@ -40,12 +36,10 @@ const ClimateCharts = {
         
         console.log('Creating temperature chart for non-dashboard page');
         
-        // Sample data for non-dashboard pages
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const avgTemperatures = [23.5, 24.1, 23.8, 22.9, 22.2, 21.5, 20.8, 21.1, 22.0, 22.8, 23.2, 23.4];
         
         try {
-            // Destroy existing chart if it exists
             if (ctx.chart) {
                 ctx.chart.destroy();
             }
@@ -95,7 +89,6 @@ const ClimateCharts = {
             return;
         }
         
-        // Check if this is dashboard (skip if it is)
         if (document.querySelector('.dashboard-indicator') || 
             document.title.includes('Dashboard')) {
             console.log('Skipping wind chart - this is dashboard');
@@ -104,12 +97,10 @@ const ClimateCharts = {
         
         console.log('Creating wind chart for non-dashboard page');
         
-        // Sample data for non-dashboard pages
         const regions = ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret'];
         const windSpeeds = [3.2, 4.5, 2.8, 3.1, 2.9];
         
         try {
-            // Destroy existing chart if it exists
             if (ctx.chart) {
                 ctx.chart.destroy();
             }
@@ -150,14 +141,11 @@ const ClimateCharts = {
     }
 };
 
-// Make it globally available
 window.climateCharts = ClimateCharts;
 
-// Initialize charts when page loads - ONLY if not on dashboard
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM fully loaded, checking if we should initialize climate charts...');
     
-    // Check if this is the dashboard page
     const isDashboard = window.location.pathname === '/' || 
                        window.location.pathname === '/dashboard/' || 
                        window.location.pathname === '/dashboard' ||
